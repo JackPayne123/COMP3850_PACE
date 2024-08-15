@@ -27,7 +27,6 @@ def generate_text_openai(prompt):
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            #{"role": "system", "content": "You are a professional language facilitator."},
             {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"}
         ]
     )
@@ -49,6 +48,7 @@ def iterative_regeneration(initial_text, model_func, iterations=5):
     current_text = initial_text
     for i in range(iterations):
         current_text = model_func(current_text)
+        st.write(f"iteration {i+1}: {current_text}")
         time.sleep(0.1)  # To avoid hitting rate limits
     return current_text
 
@@ -65,6 +65,7 @@ def calculate_bertscore(reference, candidate):
 def verify_authorship(text, authentic_model, contrasting_model):
     authentic_regen = iterative_regeneration(text, authentic_model)
     contrasting_regen = contrasting_model(text)
+    st.write(f"Constrast regen: {contrasting_regen}")
     
     authentic_bleu = calculate_bleu(text, authentic_regen)
     contrasting_bleu = calculate_bleu(text, contrasting_regen)
@@ -77,8 +78,8 @@ def verify_authorship(text, authentic_model, contrasting_model):
 st.title("Self-Watermarking Experiment")
 
 model_choice = st.radio(
-    "Select the authentic model:",
-    ("OpenAI","Claude")
+    "Select the model to verify against:",
+    ("OpenAI", "Claude")
 )
 
 if model_choice == "Claude":
@@ -92,14 +93,11 @@ else:
     authentic_name = "OpenAI"
     contrasting_name = "Claude"
 
-prompt = st.text_input("Enter a prompt:", "The quick brown fox jumps over the lazy dog.")
+input_text = st.text_area("Enter the text to verify:", "The quick brown fox jumps over the lazy dog.")
 
-if st.button("Run Experiment"):
-    with st.spinner("Running experiment..."):
-        original_text = authentic_model(prompt)
-        st.write(f"Original text: {original_text}")
-        
-        authentic_bleu, contrasting_bleu, authentic_bertscore, contrasting_bertscore = verify_authorship(original_text, authentic_model, contrasting_model)
+if st.button("Run Verification"):
+    with st.spinner("Running verification..."):
+        authentic_bleu, contrasting_bleu, authentic_bertscore, contrasting_bertscore = verify_authorship(input_text, authentic_model, contrasting_model)
         
         st.write(f"Authentic BLEU score ({authentic_name}, iterative): {authentic_bleu}")
         st.write(f"Contrasting BLEU score ({contrasting_name}, one-step): {contrasting_bleu}")
@@ -112,3 +110,8 @@ if st.button("Run Experiment"):
         st.write("\nAuthenticity Scores:")
         st.write(f"BLEU-based Authenticity Score: {bleu_authenticity}")
         st.write(f"BERTScore-based Authenticity Score: {bertscore_authenticity}")
+        
+        if bleu_authenticity > 0.5 and bertscore_authenticity > 0.5:
+            st.subheader(f"\nThe text is more likely to be from {authentic_name}.")
+        else:
+            st.subheader(f"\nThe text is more likely to be from {contrasting_name}.")
