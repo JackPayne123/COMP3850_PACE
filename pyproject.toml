@@ -12,6 +12,7 @@ openai = "^1.40.6"
 anthropic = "^0.34.0"
 nltk = "^3.8.2"
 bert-score = "^0.3.13"
+scikit-learn = "^1.5.1"
 
 
 [build-system]
