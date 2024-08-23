@@ -13,6 +13,8 @@ import google.generativeai as genai
 import requests
 import ollama
 import numpy as np
+import math
+from collections import Counter
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -32,7 +34,45 @@ except ImportError:
 
 nltk.download('punkt', quiet=True)
 
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+def ngrams(tokens, n):
+    return [tuple(tokens[i:i+n]) for i in range(len(tokens)-n+1)]
+
+def count_ngrams(tokens, n):
+    return Counter(ngrams(tokens, n))
+
+def clip_count(candidate_count, reference_count):
+    return {ngram: min(count, reference_count[ngram]) for ngram, count in candidate_count.items()}
+
+def modified_precision(reference_tokens, candidate_tokens, n):
+    reference_count = count_ngrams(reference_tokens, n)
+    candidate_count = count_ngrams(candidate_tokens, n)
+    clipped_count = clip_count(candidate_count, reference_count)
+    
+    numerator = sum(clipped_count.values())
+    denominator = max(1, sum(candidate_count.values()))
+    
+    return numerator / denominator if denominator != 0 else 0
+
+def brevity_penalty(reference_tokens, candidate_tokens):
+    c = len(candidate_tokens)
+    r = len(reference_tokens)
+    
+    if c > r:
+        return 1
+    else:
+        return math.exp(1 - r/c)
+
+def calculate_bleu(reference, candidate, weights=[0.25, 0.25, 0.25, 0.25]):
+    reference_tokens = nltk.word_tokenize(reference.lower())
+    candidate_tokens = nltk.word_tokenize(candidate.lower())
+    
+    p_n = [modified_precision(reference_tokens, candidate_tokens, n) for n in range(1, len(weights) + 1)]
+    
+    bp = brevity_penalty(reference_tokens, candidate_tokens)
+    
+    s = math.exp(sum(w * math.log(p) if p > 0 else float('-inf') for w, p in zip(weights, p_n)))
+    
+    return bp * s
 
 st.sidebar.header("Additional API Keys (Optional)")
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
@@ -141,22 +181,6 @@ def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
         st.write(f"{model_name} - Iteration {i+1}: {current_text}")
         time.sleep(0.1)  # To avoid hitting rate limits
     return current_text
-
-def calculate_bleu(reference, candidate):
-    reference_tokens = nltk.word_tokenize(reference.lower())
-    candidate_tokens = nltk.word_tokenize(candidate.lower())
-    smoothie = SmoothingFunction().method1
-    try:
-        return sentence_bleu([reference_tokens], candidate_tokens, smoothing_function=smoothie)
-    except TypeError:
-        # For older versions of NLTK that don't support the _normalize parameter
-        from fractions import Fraction
-        def modified_fraction(num, denom):
-            return Fraction(num, denom)
-        
-        import nltk.translate.bleu_score as bleu_score
-        bleu_score.Fraction = modified_fraction
-        return sentence_bleu([reference_tokens], candidate_tokens, smoothing_function=smoothie)
 
 def calculate_bertscore(reference, candidate):
     P, R, F1 = score([candidate], [reference], lang="en", verbose=False)
