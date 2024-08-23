@@ -263,8 +263,9 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     # Sum weighted scores for each model
     final_scores = weighted_scores.sum(axis=1)
     
-    # Apply softmax to get probabilities
-    exp_scores = np.exp(final_scores - np.max(final_scores))  # Subtract max for numerical stability
+    # Apply softmax with temperature to get probabilities
+    temperature = 0.1  # Adjust this value to control the "sharpness" of the distribution
+    exp_scores = np.exp(final_scores / temperature)
     probabilities = exp_scores / exp_scores.sum()
     
     return probabilities
