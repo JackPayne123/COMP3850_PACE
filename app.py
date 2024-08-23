@@ -285,7 +285,7 @@ def determine_authorship(probabilities, model_names, threshold=0.35):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
+    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
     results = {}
     contrasting_scores = []
     
