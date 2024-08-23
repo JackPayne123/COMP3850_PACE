@@ -250,7 +250,7 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     num_metrics = len(authentic_scores)
     
     # Adjust weights based on the number of metrics
-    weights = np.array([0.2, 0.3, 0.3, 0.2])  # BLEU, BERTScore, Cosine Similarity, Inverse Perplexity
+    weights = np.array([0.4, 0.4, 0.2])  # BERTScore, Cosine Similarity, Inverse Perplexity
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
@@ -285,15 +285,13 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     results = {}
     contrasting_scores = []
     
-    authentic_bleu = calculate_bleu(text, authentic_regen)
     authentic_bertscore = calculate_bertscore(text, authentic_regen)
     authentic_cosine = calculate_cosine_similarity(text, authentic_regen)
     authentic_perplexity = calculate_perplexity(authentic_regen)
     
-    authentic_scores = [authentic_bleu, authentic_bertscore, authentic_cosine, authentic_perplexity]
+    authentic_scores = [authentic_bertscore, authentic_cosine, authentic_perplexity]
     
     results[authentic_name] = {
-        'bleu': authentic_bleu,
         'bertscore': authentic_bertscore,
         'cosine': authentic_cosine,
         'perplexity': authentic_perplexity
@@ -306,17 +304,15 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
             if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
                 st.warning(f"Skipping {model_name} due to unavailability.")
                 continue
-            bleu = calculate_bleu(text, contrasting_regen)
             bertscore = calculate_bertscore(text, contrasting_regen)
             cosine = calculate_cosine_similarity(text, contrasting_regen)
             perplexity = calculate_perplexity(contrasting_regen)
             results[model_name] = {
-                'bleu': bleu,
                 'bertscore': bertscore,
                 'cosine': cosine,
                 'perplexity': perplexity
             }
-            contrasting_scores.append([bleu, bertscore, cosine, perplexity])
+            contrasting_scores.append([bertscore, cosine, perplexity])
             model_names.append(model_name)
     
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
@@ -387,7 +383,6 @@ if st.button("Run Verification"):
         st.markdown("## Detailed Metrics")
         for model_name, scores in results.items():
             st.markdown(f"### {model_name} ({'5 iterations' if model_name == model_choice else iterations_choice})")
-            st.markdown(f"- **BLEU score**: {scores['bleu']}")
             st.markdown(f"- **BERTScore**: {scores['bertscore']}")
             st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
             st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
