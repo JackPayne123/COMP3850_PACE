@@ -10,6 +10,10 @@ import warnings
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import google.generativeai as genai
+import requests
+import ollama
+import numpy as np
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -17,13 +21,18 @@ warnings.filterwarnings("ignore")
 # Download necessary NLTK data
 nltk.download('punkt', quiet=True)
 
+st.sidebar.header("Additional API Keys (Optional)")
+openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+anthropic_api_key = st.sidebar.text_input("Anthropic API Key", type="password")
+gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
+
 @st.cache_resource
 def load_openai_client():
-    return OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    return OpenAI(api_key=openai_api_key or st.secrets["OPENAI_API_KEY"])
 
 @st.cache_resource
 def load_anthropic_client():
-    return anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+    return anthropic.Anthropic(api_key=anthropic_api_key or st.secrets["ANTHROPIC_API_KEY"])
 
 @st.cache_resource
 def load_gpt2():
@@ -31,12 +40,57 @@ def load_gpt2():
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     return model, tokenizer
 
+@st.cache_resource
+def load_gemini_client():
+    genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
+    return genai.GenerativeModel('gemini-pro')
+
+# Add these new functions for text generation
+def generate_text_openai_simple(prompt):
+    client = load_openai_client()
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content.strip()
+
+def generate_text_claude_simple(prompt):
+    client = load_anthropic_client()
+    response = client.messages.create(
+        model="claude-3-sonnet-20240229",
+        max_tokens=100,
+        temperature=0.7,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.content[0].text.strip()
+
+def generate_text_gemini_simple(prompt):
+    model = load_gemini_client()
+    response = model.generate_content(prompt)
+    return response.text.strip()
+
+def generate_text_ollama_simple(prompt):
+    response = ollama.chat(model='llama3', messages=[
+        {'role': 'user', 'content': prompt},
+    ])
+    return response['message']['content']
+
+def generate_text(model, prompt):
+    if model == "OpenAI":
+        return generate_text_openai_simple(prompt)
+    elif model == "Claude":
+        return generate_text_claude_simple(prompt)
+    elif model == "Gemini":
+        return generate_text_gemini_simple(prompt)
+    elif model == "Ollama (LLaMA)":
+        return generate_text_ollama_simple(prompt)
+
 def generate_text_openai(prompt):
     client = load_openai_client()
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -48,16 +102,30 @@ def generate_text_claude(prompt):
         max_tokens=100,
         temperature=0.7,
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.content[0].text.strip()
 
-def iterative_regeneration(initial_text, model_func, iterations=5):
+def generate_text_gemini(prompt):
+    model = load_gemini_client()
+    response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
+    return response.text.strip()
+
+def generate_text_ollama(prompt):
+    response = ollama.chat(model='llama3', messages=[
+    {
+        'role': 'user',
+        'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
+    },
+    ])
+    return response['message']['content']
+
+def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
     for i in range(iterations):
         current_text = model_func(current_text)
-        st.write(f"iteration {i+1}: {current_text}")
+        st.write(f"{model_name} - Iteration {i+1}: {current_text}")
         time.sleep(0.1)  # To avoid hitting rate limits
     return current_text
 
@@ -82,87 +150,139 @@ def calculate_perplexity(text):
         outputs = model(**inputs, labels=inputs.input_ids)
     return torch.exp(outputs.loss).item()
 
-def verify_authorship(text, authentic_model, contrasting_model):
-    authentic_regen = iterative_regeneration(text, authentic_model)
-    contrasting_regen = contrasting_model(text)
-    st.write(f"Constrast regen: {contrasting_regen}")
+def calculate_authorship_probability(authentic_scores, contrasting_scores):
+    # Normalize perplexity scores (last element in each score list)
+    max_perplexity = max(authentic_scores[-1], max(score[-1] for score in contrasting_scores))
+    authentic_scores[-1] = 1 - (authentic_scores[-1] / max_perplexity)
+    for scores in contrasting_scores:
+        scores[-1] = 1 - (scores[-1] / max_perplexity)
+    
+    all_scores = np.array([authentic_scores] + contrasting_scores)
+    softmax = np.exp(all_scores) / np.sum(np.exp(all_scores), axis=0)
+    return softmax.mean(axis=1)  # Take the mean across all metrics
+
+def determine_authorship(probabilities, model_names, threshold=0.2):
+    max_prob = np.max(probabilities)
+    max_index = np.argmax(probabilities)
+    if max_prob >= threshold and max_index == 0:
+        return "Authentic"
+    elif max_prob >= threshold:
+        return f"Contrasting ({model_names[max_index]})"
+    else:
+        return "Inconclusive"
+
+def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
+    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
+    results = {}
+    contrasting_scores = []
     
     authentic_bleu = calculate_bleu(text, authentic_regen)
-    contrasting_bleu = calculate_bleu(text, contrasting_regen)
-    
     authentic_bertscore = calculate_bertscore(text, authentic_regen)
-    contrasting_bertscore = calculate_bertscore(text, contrasting_regen)
-    
     authentic_cosine = calculate_cosine_similarity(text, authentic_regen)
-    contrasting_cosine = calculate_cosine_similarity(text, contrasting_regen)
-    
     authentic_perplexity = calculate_perplexity(authentic_regen)
-    contrasting_perplexity = calculate_perplexity(contrasting_regen)
     
-    return authentic_bleu, contrasting_bleu, authentic_bertscore, contrasting_bertscore, authentic_cosine, contrasting_cosine, authentic_perplexity, contrasting_perplexity
+    authentic_scores = [authentic_bleu, authentic_bertscore, authentic_cosine, 1/authentic_perplexity]
+    
+    results[authentic_name] = {
+        'bleu': authentic_bleu,
+        'bertscore': authentic_bertscore,
+        'cosine': authentic_cosine,
+        'perplexity': authentic_perplexity
+    }
+    
+    model_names = [authentic_name]
+    for model_name, model_func in all_models.items():
+        if model_name != authentic_name:
+            contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=iterations)
+            bleu = calculate_bleu(text, contrasting_regen)
+            bertscore = calculate_bertscore(text, contrasting_regen)
+            cosine = calculate_cosine_similarity(text, contrasting_regen)
+            perplexity = calculate_perplexity(contrasting_regen)
+            results[model_name] = {
+                'bleu': bleu,
+                'bertscore': bertscore,
+                'cosine': cosine,
+                'perplexity': perplexity
+            }
+            contrasting_scores.append([bleu, bertscore, cosine, 1/perplexity])
+            model_names.append(model_name)
+    
+    probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
+    authorship_result = determine_authorship(probabilities, model_names)
+    
+    return authentic_regen, results, probabilities, authorship_result, model_names
 
-def determine_authorship(authentic_scores, contrasting_scores):
-    authentic_avg = sum(authentic_scores) / len(authentic_scores)
-    contrasting_avg = sum(contrasting_scores) / len(contrasting_scores)
-    threshold = 0.55  # Adjust as needed
-    if authentic_avg > contrasting_avg and authentic_avg > threshold:
-        return "authentic"
-    elif contrasting_avg > authentic_avg and contrasting_avg > threshold:
-        return "contrasting"
-    else:
-        return "inconclusive"
+st.title("Text Input Options")
+
+input_option = st.radio(
+    "Choose input method:",
+    ("Enter text manually", "Generate text using a model")
+)
+
+if input_option == "Generate text using a model":
+    generation_model = st.selectbox(
+        "Select model for text generation",
+        ["OpenAI", "Claude", "Gemini", "Ollama (LLaMA)"]
+    )
+    prompt = st.text_area("Enter your prompt for text generation")
+    if st.button("Generate Text"):
+        try:
+            generated_text = generate_text(generation_model, prompt)
+            st.write("Generated Text:")
+            st.write(generated_text)
+            st.session_state.generated_text = generated_text
+        except Exception as e:
+            st.error(f"Error generating text: {str(e)}")
+
+if 'input_text' not in st.session_state:
+    st.session_state.input_text = "The quick brown fox jumps over the lazy dog."
 
 st.title("Self-Watermarking Experiment")
 
-model_choice = st.radio(
+all_models = {
+    "ChatGPT-4o": generate_text_openai,
+    "Claude3-sonnet": generate_text_claude,
+    "Gemini-pro": generate_text_gemini,
+    "LLaMA3.1-8b": generate_text_ollama
+}
+
+model_choice = st.selectbox(
     "Select the model to verify against:",
-    ("OpenAI", "Claude")
+    list(all_models.keys())
 )
 
-if model_choice == "Claude":
-    authentic_model = generate_text_claude
-    contrasting_model = generate_text_openai
-    authentic_name = "Claude"
-    contrasting_name = "OpenAI"
-else:
-    authentic_model = generate_text_openai
-    contrasting_model = generate_text_claude
-    authentic_name = "OpenAI"
-    contrasting_name = "Claude"
+authentic_model = all_models[model_choice]
 
-input_text = st.text_area("Enter the text to verify:", "The quick brown fox jumps over the lazy dog.")
+if input_option == "Enter text manually":
+    st.session_state.input_text = st.text_area("Enter the text to verify:", st.session_state.input_text)
+else:
+    st.session_state.input_text = st.text_area("Enter the text to verify:", 
+                                               value=st.session_state.get('generated_text', st.session_state.input_text),
+                                               help="You can edit the generated text or enter new text here.")
+
+iterations_choice = st.radio(
+    "Choose iteration mode for contrasting models:",
+    ("One-shot", "5 iterations")
+)
 
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
-        authentic_bleu, contrasting_bleu, authentic_bertscore, contrasting_bertscore, authentic_cosine, contrasting_cosine, authentic_perplexity, contrasting_perplexity = verify_authorship(input_text, authentic_model, contrasting_model)
+        iterations = 5 if iterations_choice == "5 iterations" else 1
+        authentic_regen, results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
-        st.write(f"Authentic BLEU score ({authentic_name}, iterative): {authentic_bleu}")
-        st.write(f"Contrasting BLEU score ({contrasting_name}, one-step): {contrasting_bleu}")
-        st.write(f"Authentic BERTScore ({authentic_name}, iterative): {authentic_bertscore}")
-        st.write(f"Contrasting BERTScore ({contrasting_name}, one-step): {contrasting_bertscore}")
+        st.markdown("## Authorship Probabilities")
+        for i, model_name in enumerate(model_names):
+            if i < len(probabilities):
+                st.markdown(f"**{model_name}**: {probabilities[i]*100:.2f}%")
+            else:
+                st.markdown(f"**{model_name}**: Probability not calculated")
         
-        bleu_authenticity = authentic_bleu / (authentic_bleu + contrasting_bleu)
-        bertscore_authenticity = authentic_bertscore / (authentic_bertscore + contrasting_bertscore)
-        cosine_authenticity = authentic_cosine / (authentic_cosine + contrasting_cosine)
+        st.markdown(f"## Final Result: **{authorship_result}**")
         
-        st.write("\nAuthenticity Scores:")
-        st.write(f"BLEU-based Authenticity Score: {bleu_authenticity}")
-        st.write(f"BERTScore-based Authenticity Score: {bertscore_authenticity}")
-        st.write(f"Cosine-based Authenticity Score: {cosine_authenticity}")
-        
-        authentic_scores = [bleu_authenticity, bertscore_authenticity, cosine_authenticity]
-        contrasting_scores = [1 - bleu_authenticity, 1 - bertscore_authenticity, 1 - cosine_authenticity]
-        authorship = determine_authorship(authentic_scores, contrasting_scores)
-        
-        st.write("\nDetailed Metrics:")
-        st.write(f"Authentic Cosine Similarity: {authentic_cosine:.4f}")
-        st.write(f"Contrasting Cosine Similarity: {contrasting_cosine:.4f}")
-        st.write(f"Authentic Perplexity: {authentic_perplexity:.4f}")
-        st.write(f"Contrasting Perplexity: {contrasting_perplexity:.4f}")
-
-        if authorship == "authentic":
-            st.subheader(f"\nThe text is more likely to be from {authentic_name}.")
-        elif authorship == "contrasting":
-            st.subheader(f"\nThe text is more likely to be from {contrasting_name}.")
-        else:
-            st.subheader(f"\nThe authorship is inconclusive.")
+        st.markdown("## Detailed Metrics")
+        for model_name, scores in results.items():
+            st.markdown(f"### {model_name} ({'5 iterations' if model_name == model_choice else iterations_choice})")
+            st.markdown(f"- **BLEU score**: {scores['bleu']}")
+            st.markdown(f"- **BERTScore**: {scores['bertscore']}")
+            st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
+            st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
