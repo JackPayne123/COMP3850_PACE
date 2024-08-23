@@ -246,11 +246,8 @@ def normalize_scores(scores, power=2):
     return normalized
 
 def calculate_authorship_probability(authentic_scores, contrasting_scores):
-    # Determine the number of metrics dynamically
-    num_metrics = len(authentic_scores)
-    
-    # Adjust weights based on the number of metrics
-    weights = np.array([0.4, 0.4, 0.2])  # BERTScore, Cosine Similarity, Inverse Perplexity
+    # Adjust weights for BERTScore, Cosine Similarity, Inverse Perplexity
+    weights = np.array([0.4, 0.4, 0.2])
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
@@ -265,8 +262,15 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     
     # Apply softmax with temperature to get probabilities
     temperature = 0.1  # Adjust this value to control the "sharpness" of the distribution
-    exp_scores = np.exp(final_scores / temperature)
-    probabilities = exp_scores / exp_scores.sum()
+    exp_scores = np.exp((final_scores - np.max(final_scores)) / temperature)  # Subtract max for numerical stability
+    probabilities = exp_scores / np.sum(exp_scores)
+    
+    # Handle any remaining NaN values
+    probabilities = np.nan_to_num(probabilities, nan=0.0)
+    
+    # If all probabilities are zero, distribute evenly
+    if np.sum(probabilities) == 0:
+        probabilities = np.ones_like(probabilities) / len(probabilities)
     
     return probabilities
 
@@ -281,7 +285,7 @@ def determine_authorship(probabilities, model_names, threshold=0.35):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
+    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
     results = {}
     contrasting_scores = []
     
