@@ -264,12 +264,13 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     # Sum weighted scores for each model
     final_scores = weighted_scores.sum(axis=1)
     
-    # Convert to probabilities
-    probabilities = final_scores / final_scores.sum()
+    # Apply softmax to get probabilities
+    exp_scores = np.exp(final_scores - np.max(final_scores))  # Subtract max for numerical stability
+    probabilities = exp_scores / exp_scores.sum()
     
     return probabilities
 
-def determine_authorship(probabilities, model_names, threshold=0.45):
+def determine_authorship(probabilities, model_names, threshold=0.4):
     max_prob = np.max(probabilities)
     max_index = np.argmax(probabilities)
     if max_prob >= threshold and max_index == 0:
