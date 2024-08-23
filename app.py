@@ -101,9 +101,37 @@ def load_gemini_client():
 def is_ollama_available():
     try:
         import ollama
+        # Try to list models to check if Ollama service is accessible
+        ollama.list()
         return True
-    except ImportError:
+    except (ImportError, ConnectionError, ollama.ResponseError):
         return False
+
+def generate_text_ollama_simple(prompt):
+    if is_ollama_available():
+        import ollama
+        try:
+            response = ollama.chat(model='llama3', messages=[
+                {'role': 'user', 'content': prompt},
+            ])
+            return response['message']['content']
+        except Exception as e:
+            return f"Error using Ollama: {str(e)}"
+    else:
+        return "Ollama (LLaMA) is not available in this environment."
+
+def generate_text_ollama(prompt):
+    if is_ollama_available():
+        import ollama
+        try:
+            response = ollama.chat(model='llama3', messages=[
+                {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"},
+            ])
+            return response['message']['content']
+        except Exception as e:
+            return f"Error using Ollama: {str(e)}"
+    else:
+        return "Ollama (LLaMA) is not available in this environment."
 
 def generate_text_openai_simple(prompt):
     client = load_openai_client()
@@ -127,16 +155,6 @@ def generate_text_gemini_simple(prompt):
     model = load_gemini_client()
     response = model.generate_content(prompt)
     return response.text.strip()
-
-def generate_text_ollama_simple(prompt):
-    if is_ollama_available():
-        import ollama
-        response = ollama.chat(model='llama3', messages=[
-            {'role': 'user', 'content': prompt},
-        ])
-        return response['message']['content']
-    else:
-        return "Ollama (LLaMA) is not available in this environment."
 
 def generate_text(model, prompt):
     if model == "OpenAI":
@@ -175,15 +193,19 @@ def generate_text_gemini(prompt):
     response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
     return response.text.strip()
 
-def generate_text_ollama(prompt):
-    if is_ollama_available():
-        import ollama
-        response = ollama.chat(model='llama2', messages=[
-            {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"},
-        ])
-        return response['message']['content']
-    else:
-        return "Ollama (LLaMA) is not available in this environment."
+# Update the all_models dictionary
+all_models = {
+    "OpenAI": generate_text_openai,
+    "Claude": generate_text_claude,
+    "Gemini": generate_text_gemini,
+}
+if is_ollama_available():
+    all_models["Ollama (LLaMA)"] = generate_text_ollama
+
+# Update the model selection dropdown
+available_models = ["OpenAI", "Claude", "Gemini"]
+if is_ollama_available():
+    available_models.append("Ollama (LLaMA)")
 
 def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
@@ -252,6 +274,9 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
             contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=iterations)
+            if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+                st.warning(f"Skipping {model_name} due to unavailability.")
+                continue
             bleu = calculate_bleu(text, contrasting_regen)
             bertscore = calculate_bertscore(text, contrasting_regen)
             cosine = calculate_cosine_similarity(text, contrasting_regen)
@@ -278,10 +303,6 @@ input_option = st.radio(
 )
 
 if input_option == "Generate text using a model":
-    available_models = ["OpenAI", "Claude", "Gemini"]
-    if is_ollama_available():
-        available_models.append("Ollama (LLaMA)")
-
     generation_model = st.selectbox(
         "Select model for text generation",
         available_models
@@ -300,13 +321,6 @@ if 'input_text' not in st.session_state:
     st.session_state.input_text = "The quick brown fox jumps over the lazy dog."
 
 st.title("Self-Watermarking Experiment")
-
-all_models = {
-    "ChatGPT-4o": generate_text_openai,
-    "Claude3-sonnet": generate_text_claude,
-    "Gemini-pro": generate_text_gemini,
-    "LLaMA3.1-8b": generate_text_ollama
-}
 
 model_choice = st.selectbox(
     "Select the model to verify against:",
