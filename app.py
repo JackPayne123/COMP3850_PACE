@@ -335,7 +335,25 @@ if input_option == "Generate text using a model":
         "Select model for text generation",
         available_models
     )
-    prompt = st.text_area("Enter your prompt for text generation")
+    
+    # Add example prompts
+    example_prompts = [
+        "Explain the concept of quantum entanglement in simple terms.",
+        "Write a short story about a time traveler who accidentally changes history.",
+        "Describe the process of photosynthesis in plants.",
+        "Create a recipe for a unique fusion dish combining Italian and Japanese cuisines."
+    ]
+    
+    selected_prompt = st.selectbox(
+        "Select an example prompt or write your own:",
+        ["Write your own prompt..."] + example_prompts
+    )
+    
+    if selected_prompt == "Write your own prompt...":
+        prompt = st.text_area("Enter your prompt for text generation")
+    else:
+        prompt = st.text_area("Enter your prompt for text generation", value=selected_prompt)
+    
     if st.button("Generate Text"):
         try:
             generated_text = generate_text(generation_model, prompt)
@@ -364,14 +382,16 @@ else:
                                                value=st.session_state.get('generated_text', st.session_state.input_text),
                                                help="You can edit the generated text or enter new text here.")
 
-iterations_choice = st.radio(
-    "Choose iteration mode for contrasting models:",
-    ("One-shot", "5 iterations")
-)
+# Comment out the iterations choice
+# iterations_choice = st.radio(
+#     "Choose iteration mode for contrasting models:",
+#     ("One-shot", "5 iterations")
+# )
 
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
-        iterations = 5 if iterations_choice == "5 iterations" else 1
+        # Always use 5 iterations for the authentic model
+        iterations = 5
         authentic_regen, results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
         st.markdown("## Authorship Probabilities")
@@ -385,7 +405,7 @@ if st.button("Run Verification"):
         
         st.markdown("## Detailed Metrics")
         for model_name, scores in results.items():
-            st.markdown(f"### {model_name} ({'5 iterations' if model_name == model_choice else iterations_choice})")
+            st.markdown(f"### {model_name} ({'5 iterations' if model_name == model_choice else '1 iteration'})")
             st.markdown(f"- **BERTScore**: {scores['bertscore']}")
             st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
             st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
