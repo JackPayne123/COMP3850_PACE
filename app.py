@@ -186,7 +186,6 @@ def generate_text_claude(prompt):
     client = load_anthropic_client()
     response = client.messages.create(
         model="claude-3-sonnet-20240229",
-        max_tokens=100,
         temperature=0.7,
         messages=[
             {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
