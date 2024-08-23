@@ -239,6 +239,8 @@ def normalize_scores(scores, power=2, inverse_last=True):
     normalized = np.array(scores, dtype=float)
     if inverse_last:
         normalized[-1] = 1 / (1 + normalized[-1])  # Invert the last metric (assumed to be perplexity)
+    else:
+        normalized[-1] = 1 - (normalized[-1] / (1 + normalized[-1]))  # Normalize perplexity without inverting
     
     # Apply power normalization
     normalized = normalized ** power
@@ -254,14 +256,14 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     if num_metrics == 3:
         weights = np.array([0.3, 0.4, 0.3])  # For BLEU, BERTScore, Cosine Similarity
     elif num_metrics == 4:
-        weights = np.array([0.1, 0.4, 0.3, 0.2])  # Including Perplexity
+        weights = np.array([0.2, 0.3, 0.3, 0.2])  # Including Perplexity
     else:
         weights = np.ones(num_metrics) / num_metrics  # Equal weights if unexpected number of metrics
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
     # Normalize scores for each metric
-    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores)
+    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores, inverse_last=(num_metrics == 4))
     
     # Apply weights
     weighted_scores = normalized_scores * weights
@@ -285,7 +287,7 @@ def determine_authorship(probabilities, model_names, threshold=0.45):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
+    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
     results = {}
     contrasting_scores = []
     
@@ -294,7 +296,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     authentic_cosine = calculate_cosine_similarity(text, authentic_regen)
     authentic_perplexity = calculate_perplexity(authentic_regen)
     
-    authentic_scores = [authentic_bleu, authentic_bertscore, authentic_cosine, 1/authentic_perplexity]
+    authentic_scores = [authentic_bleu, authentic_bertscore, authentic_cosine, authentic_perplexity]
     
     results[authentic_name] = {
         'bleu': authentic_bleu,
@@ -306,10 +308,9 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     model_names = [authentic_name]
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
+            if model_name == "Ollama (LLaMA)" and not is_ollama_available():
+                continue  # Skip Ollama if it's not available
             contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=iterations)
-            if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
-                st.warning(f"Skipping {model_name} due to unavailability.")
-                continue
             bleu = calculate_bleu(text, contrasting_regen)
             bertscore = calculate_bertscore(text, contrasting_regen)
             cosine = calculate_cosine_similarity(text, contrasting_regen)
@@ -320,7 +321,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
                 'cosine': cosine,
                 'perplexity': perplexity
             }
-            contrasting_scores.append([bleu, bertscore, cosine, 1/perplexity])
+            contrasting_scores.append([bleu, bertscore, cosine, perplexity])
             model_names.append(model_name)
     
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
