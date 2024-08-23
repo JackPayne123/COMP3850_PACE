@@ -235,10 +235,10 @@ def calculate_perplexity(text):
 
 import numpy as np
 
-def normalize_scores(scores, power=2, inverse_metrics=[3]):
+def normalize_scores(scores, power=2, inverse_last=True):
     normalized = np.array(scores, dtype=float)
-    for i in inverse_metrics:
-        normalized[i] = 1 / (1 + normalized[i])  # Invert metrics where lower is better (e.g., perplexity)
+    if inverse_last:
+        normalized[-1] = 1 / (1 + normalized[-1])  # Invert the last metric (assumed to be perplexity)
     
     # Apply power normalization
     normalized = normalized ** power
@@ -247,8 +247,16 @@ def normalize_scores(scores, power=2, inverse_metrics=[3]):
     return normalized / normalized.sum()
 
 def calculate_authorship_probability(authentic_scores, contrasting_scores):
-    # Assign weights to each metric (BLEU, BERTScore, Cosine Similarity, Inverse Perplexity)
-    weights = np.array([0.1, 0.4, 0.3, 0.2])
+    # Determine the number of metrics dynamically
+    num_metrics = len(authentic_scores)
+    
+    # Adjust weights based on the number of metrics
+    if num_metrics == 3:
+        weights = np.array([0.3, 0.4, 0.3])  # For BLEU, BERTScore, Cosine Similarity
+    elif num_metrics == 4:
+        weights = np.array([0.1, 0.4, 0.3, 0.2])  # Including Perplexity
+    else:
+        weights = np.ones(num_metrics) / num_metrics  # Equal weights if unexpected number of metrics
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
