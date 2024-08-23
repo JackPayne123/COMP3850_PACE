@@ -235,12 +235,10 @@ def calculate_perplexity(text):
 
 import numpy as np
 
-def normalize_scores(scores, power=2, inverse_last=True):
+def normalize_scores(scores, power=2):
     normalized = np.array(scores, dtype=float)
-    if inverse_last:
-        normalized[-1] = 1 / (1 + normalized[-1])  # Invert the last metric (assumed to be perplexity)
-    else:
-        normalized[-1] = 1 - (normalized[-1] / (1 + normalized[-1]))  # Normalize perplexity without inverting
+    # Invert perplexity so that lower is better
+    normalized[-1] = 1 / (1 + normalized[-1])
     
     # Apply power normalization
     normalized = normalized ** power
@@ -253,17 +251,12 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     num_metrics = len(authentic_scores)
     
     # Adjust weights based on the number of metrics
-    if num_metrics == 3:
-        weights = np.array([0.3, 0.4, 0.3])  # For BLEU, BERTScore, Cosine Similarity
-    elif num_metrics == 4:
-        weights = np.array([0.2, 0.3, 0.3, 0.2])  # Including Perplexity
-    else:
-        weights = np.ones(num_metrics) / num_metrics  # Equal weights if unexpected number of metrics
+    weights = np.array([0.2, 0.3, 0.3, 0.2])  # BLEU, BERTScore, Cosine Similarity, Inverse Perplexity
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
     # Normalize scores for each metric
-    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores, inverse_last=(num_metrics == 4))
+    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores)
     
     # Apply weights
     weighted_scores = normalized_scores * weights
@@ -308,9 +301,10 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     model_names = [authentic_name]
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
-            if model_name == "Ollama (LLaMA)" and not is_ollama_available():
-                continue  # Skip Ollama if it's not available
             contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=iterations)
+            if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+                st.warning(f"Skipping {model_name} due to unavailability.")
+                continue
             bleu = calculate_bleu(text, contrasting_regen)
             bertscore = calculate_bertscore(text, contrasting_regen)
             cosine = calculate_cosine_similarity(text, contrasting_regen)
