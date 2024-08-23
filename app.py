@@ -114,7 +114,7 @@ def generate_text_ollama_simple(prompt):
     if is_ollama_available():
         import ollama
         try:
-            response = ollama.chat(model='llama2', messages=[
+            response = ollama.chat(model='llama3', messages=[
                 {'role': 'user', 'content': prompt},
             ])
             return response['message']['content']
@@ -127,7 +127,7 @@ def generate_text_ollama(prompt):
     if is_ollama_available():
         import ollama
         try:
-            response = ollama.chat(model='llama2', messages=[
+            response = ollama.chat(model='llama3', messages=[
                 {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"},
             ])
             return response['message']['content']
@@ -280,7 +280,7 @@ def determine_authorship(probabilities, model_names, threshold=0.35):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
+    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
     results = {}
     contrasting_scores = []
     
