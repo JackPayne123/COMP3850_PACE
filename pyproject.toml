@@ -10,7 +10,7 @@ python = "^3.12"
 sentence-transformers = "^3.0.1"
 openai = "^1.40.6"
 anthropic = "^0.34.0"
-nltk = {url = "https://files.pythonhosted.org/packages/45/d0/aa2c1f91a9ddf3a8a1a1c3e0b6d7d1c7b8e5a8b2c28109b0c8c9b9418e2e/nltk-3.8.2-py3-none-any.whl"}
+nltk = "3.7"
 bert-score = "^0.3.13"
 scikit-learn = "^1.5.1"
 ollama = "^0.3.1"
