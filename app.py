@@ -15,6 +15,7 @@ import ollama
 import numpy as np
 import math
 from collections import Counter
+import os
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -99,12 +100,14 @@ def load_gemini_client():
     return genai.GenerativeModel('gemini-pro')
 
 def is_ollama_available():
+    # Check if we're running in a Streamlit cloud environment
+    if os.environ.get('STREAMLIT_SHARING') or os.environ.get('STREAMLIT_CLOUD'):
+        return False
+    
     try:
         import ollama
-        # Try to list models to check if Ollama service is accessible
-        ollama.list()
         return True
-    except (ImportError, ConnectionError, ollama.ResponseError):
+    except ImportError:
         return False
 
 def generate_text_ollama_simple(prompt):
