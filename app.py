@@ -240,11 +240,19 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     for scores in contrasting_scores:
         scores[-1] = 1 - (scores[-1] / max_perplexity)
     
+    # Assign weights to each metric (BLEU, BERTScore, Cosine Similarity, Inverse Perplexity)
+    weights = np.array([0.1, 0.4, 0.3, 0.2])
+    
     all_scores = np.array([authentic_scores] + contrasting_scores)
-    softmax = np.exp(all_scores) / np.sum(np.exp(all_scores), axis=0)
-    return softmax.mean(axis=1)  # Take the mean across all metrics
+    weighted_scores = all_scores * weights
+    
+    # Apply softmax to each metric separately
+    softmax = np.exp(weighted_scores) / np.sum(np.exp(weighted_scores), axis=0)
+    
+    # Take the weighted average across all metrics
+    return np.average(softmax, axis=1, weights=weights)
 
-def determine_authorship(probabilities, model_names, threshold=0.2):
+def determine_authorship(probabilities, model_names, threshold=0.4):
     max_prob = np.max(probabilities)
     max_index = np.argmax(probabilities)
     if max_prob >= threshold and max_index == 0:
