@@ -98,7 +98,13 @@ def load_gemini_client():
     genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
     return genai.GenerativeModel('gemini-pro')
 
-# Add these new functions for text generation
+def is_ollama_available():
+    try:
+        import ollama
+        return True
+    except ImportError:
+        return False
+
 def generate_text_openai_simple(prompt):
     client = load_openai_client()
     response = client.chat.completions.create(
@@ -123,10 +129,14 @@ def generate_text_gemini_simple(prompt):
     return response.text.strip()
 
 def generate_text_ollama_simple(prompt):
-    response = ollama.chat(model='llama3', messages=[
-        {'role': 'user', 'content': prompt},
-    ])
-    return response['message']['content']
+    if is_ollama_available():
+        import ollama
+        response = ollama.chat(model='llama3', messages=[
+            {'role': 'user', 'content': prompt},
+        ])
+        return response['message']['content']
+    else:
+        return "Ollama (LLaMA) is not available in this environment."
 
 def generate_text(model, prompt):
     if model == "OpenAI":
@@ -166,13 +176,14 @@ def generate_text_gemini(prompt):
     return response.text.strip()
 
 def generate_text_ollama(prompt):
-    response = ollama.chat(model='llama3', messages=[
-    {
-        'role': 'user',
-        'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
-    },
-    ])
-    return response['message']['content']
+    if is_ollama_available():
+        import ollama
+        response = ollama.chat(model='llama2', messages=[
+            {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"},
+        ])
+        return response['message']['content']
+    else:
+        return "Ollama (LLaMA) is not available in this environment."
 
 def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
@@ -267,9 +278,13 @@ input_option = st.radio(
 )
 
 if input_option == "Generate text using a model":
+    available_models = ["OpenAI", "Claude", "Gemini"]
+    if is_ollama_available():
+        available_models.append("Ollama (LLaMA)")
+
     generation_model = st.selectbox(
         "Select model for text generation",
-        ["OpenAI", "Claude", "Gemini", "Ollama (LLaMA)"]
+        available_models
     )
     prompt = st.text_area("Enter your prompt for text generation")
     if st.button("Generate Text"):
