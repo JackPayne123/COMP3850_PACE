@@ -235,13 +235,19 @@ def calculate_perplexity(text):
 
 import numpy as np
 
-def normalize_scores(scores, power=2):
+def normalize_scores(scores):
     normalized = np.array(scores, dtype=float)
     # Invert perplexity so that lower is better
     normalized[-1] = 1 / (1 + normalized[-1])
     
-    # Apply power normalization
-    normalized = normalized ** power
+    # Min-max normalization for each metric
+    for i in range(len(normalized)):
+        min_val = np.min(normalized[:, i])
+        max_val = np.max(normalized[:, i])
+        if max_val > min_val:
+            normalized[:, i] = (normalized[:, i] - min_val) / (max_val - min_val)
+        else:
+            normalized[:, i] = 1  # If all values are the same, set to 1
     
     return normalized
 
@@ -252,7 +258,7 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     all_scores = np.array([authentic_scores] + contrasting_scores)
     
     # Normalize scores for each metric
-    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores)
+    normalized_scores = normalize_scores(all_scores)
     
     # Apply weights
     weighted_scores = normalized_scores * weights
@@ -260,21 +266,14 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     # Sum weighted scores for each model
     final_scores = weighted_scores.sum(axis=1)
     
-    # Apply softmax with temperature to get probabilities
-    temperature = 0.00007  # Adjust this value to control the "sharpness" of the distribution
-    exp_scores = np.exp((final_scores - np.max(final_scores)) / temperature)  # Subtract max for numerical stability
+    # Convert to probabilities using softmax with a higher temperature
+    temperature = 0.5  # Adjust this value to control the "sharpness" of the distribution
+    exp_scores = np.exp(final_scores / temperature)
     probabilities = exp_scores / np.sum(exp_scores)
-    
-    # Handle any remaining NaN values
-    probabilities = np.nan_to_num(probabilities, nan=0.0)
-    
-    # If all probabilities are zero, distribute evenly
-    if np.sum(probabilities) == 0:
-        probabilities = np.ones_like(probabilities) / len(probabilities)
     
     return probabilities
 
-def determine_authorship(probabilities, model_names, threshold=0.35):
+def determine_authorship(probabilities, model_names, threshold=0.4):
     max_prob = np.max(probabilities)
     max_index = np.argmax(probabilities)
     if max_prob >= threshold and max_index == 0:
