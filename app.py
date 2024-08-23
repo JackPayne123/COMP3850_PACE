@@ -146,7 +146,17 @@ def calculate_bleu(reference, candidate):
     reference_tokens = nltk.word_tokenize(reference.lower())
     candidate_tokens = nltk.word_tokenize(candidate.lower())
     smoothie = SmoothingFunction().method1
-    return sentence_bleu([reference_tokens], candidate_tokens, smoothing_function=smoothie)
+    try:
+        return sentence_bleu([reference_tokens], candidate_tokens, smoothing_function=smoothie)
+    except TypeError:
+        # For older versions of NLTK that don't support the _normalize parameter
+        from fractions import Fraction
+        def modified_fraction(num, denom):
+            return Fraction(num, denom)
+        
+        import nltk.translate.bleu_score as bleu_score
+        bleu_score.Fraction = modified_fraction
+        return sentence_bleu([reference_tokens], candidate_tokens, smoothing_function=smoothie)
 
 def calculate_bertscore(reference, candidate):
     P, R, F1 = score([candidate], [reference], lang="en", verbose=False)
