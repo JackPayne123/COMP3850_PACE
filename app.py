@@ -243,8 +243,7 @@ def normalize_scores(scores, power=2):
     # Apply power normalization
     normalized = normalized ** power
     
-    # Normalize to sum to 1
-    return normalized / normalized.sum()
+    return normalized
 
 def calculate_authorship_probability(authentic_scores, contrasting_scores):
     # Determine the number of metrics dynamically
@@ -270,7 +269,7 @@ def calculate_authorship_probability(authentic_scores, contrasting_scores):
     
     return probabilities
 
-def determine_authorship(probabilities, model_names, threshold=0.4):
+def determine_authorship(probabilities, model_names, threshold=0.35):
     max_prob = np.max(probabilities)
     max_index = np.argmax(probabilities)
     if max_prob >= threshold and max_index == 0:
