@@ -2,8 +2,7 @@ import streamlit as st
 from openai import OpenAI
 import anthropic
 import time
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-import nltk
+
 from bert_score import score
 import torch
 import warnings
@@ -19,7 +18,21 @@ import numpy as np
 warnings.filterwarnings("ignore")
 
 # Download necessary NLTK data
+import subprocess
+import sys
+
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    import nltk
+except ImportError:
+    install('nltk')
+    import nltk
+
 nltk.download('punkt', quiet=True)
+
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 st.sidebar.header("Additional API Keys (Optional)")
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
