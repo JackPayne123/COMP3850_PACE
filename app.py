@@ -233,26 +233,40 @@ def calculate_perplexity(text):
         outputs = model(**inputs, labels=inputs.input_ids)
     return torch.exp(outputs.loss).item()
 
-def calculate_authorship_probability(authentic_scores, contrasting_scores):
-    # Normalize perplexity scores (last element in each score list)
-    max_perplexity = max(authentic_scores[-1], max(score[-1] for score in contrasting_scores))
-    authentic_scores[-1] = 1 - (authentic_scores[-1] / max_perplexity)
-    for scores in contrasting_scores:
-        scores[-1] = 1 - (scores[-1] / max_perplexity)
+import numpy as np
+
+def normalize_scores(scores, power=2, inverse_metrics=[3]):
+    normalized = np.array(scores, dtype=float)
+    for i in inverse_metrics:
+        normalized[i] = 1 / (1 + normalized[i])  # Invert metrics where lower is better (e.g., perplexity)
     
+    # Apply power normalization
+    normalized = normalized ** power
+    
+    # Normalize to sum to 1
+    return normalized / normalized.sum()
+
+def calculate_authorship_probability(authentic_scores, contrasting_scores):
     # Assign weights to each metric (BLEU, BERTScore, Cosine Similarity, Inverse Perplexity)
     weights = np.array([0.1, 0.4, 0.3, 0.2])
     
     all_scores = np.array([authentic_scores] + contrasting_scores)
-    weighted_scores = all_scores * weights
     
-    # Apply softmax to each metric separately
-    softmax = np.exp(weighted_scores) / np.sum(np.exp(weighted_scores), axis=0)
+    # Normalize scores for each metric
+    normalized_scores = np.apply_along_axis(normalize_scores, 0, all_scores)
     
-    # Take the weighted average across all metrics
-    return np.average(softmax, axis=1, weights=weights)
+    # Apply weights
+    weighted_scores = normalized_scores * weights
+    
+    # Sum weighted scores for each model
+    final_scores = weighted_scores.sum(axis=1)
+    
+    # Convert to probabilities
+    probabilities = final_scores / final_scores.sum()
+    
+    return probabilities
 
-def determine_authorship(probabilities, model_names, threshold=0.4):
+def determine_authorship(probabilities, model_names, threshold=0.45):
     max_prob = np.max(probabilities)
     max_index = np.argmax(probabilities)
     if max_prob >= threshold and max_index == 0:
