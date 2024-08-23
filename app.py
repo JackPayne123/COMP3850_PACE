@@ -116,7 +116,7 @@ def generate_text_ollama_simple(prompt):
         try:
             response = ollama.chat(model='llama3', messages=[
                 {'role': 'user', 'content': prompt},
-            ])
+            ], options={"num_predict": 250})
             return response['message']['content']
         except Exception as e:
             return f"Error using Ollama: {str(e)}"
@@ -140,7 +140,8 @@ def generate_text_openai_simple(prompt):
     client = load_openai_client()
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}]
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=250
     )
     return response.choices[0].message.content.strip()
 
@@ -148,7 +149,7 @@ def generate_text_claude_simple(prompt):
     client = load_anthropic_client()
     response = client.messages.create(
         model="claude-3-sonnet-20240229",
-        max_tokens=100,
+        max_tokens=250,
         temperature=0.7,
         messages=[{"role": "user", "content": prompt}]
     )
@@ -156,7 +157,9 @@ def generate_text_claude_simple(prompt):
 
 def generate_text_gemini_simple(prompt):
     model = load_gemini_client()
-    response = model.generate_content(prompt)
+    response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(
+        max_output_tokens=250
+    ))
     return response.text.strip()
 
 def generate_text(model, prompt):
