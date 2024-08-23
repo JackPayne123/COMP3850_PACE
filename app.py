@@ -114,7 +114,7 @@ def generate_text_ollama_simple(prompt):
     if is_ollama_available():
         import ollama
         try:
-            response = ollama.chat(model='llama3', messages=[
+            response = ollama.chat(model='llama2', messages=[
                 {'role': 'user', 'content': prompt},
             ])
             return response['message']['content']
@@ -127,7 +127,7 @@ def generate_text_ollama(prompt):
     if is_ollama_available():
         import ollama
         try:
-            response = ollama.chat(model='llama3', messages=[
+            response = ollama.chat(model='llama2', messages=[
                 {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"},
             ])
             return response['message']['content']
@@ -301,7 +301,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     model_names = [authentic_name]
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
-            contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=iterations)
+            contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=1)  # Always use 1 iteration for contrasting models
             if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
                 st.warning(f"Skipping {model_name} due to unavailability.")
                 continue
