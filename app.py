@@ -176,6 +176,7 @@ def generate_text_openai(prompt):
     client = load_openai_client()
     response = client.chat.completions.create(
         model="gpt-4o",
+        max_tokens=250,
         messages=[
             {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
         ]
@@ -186,7 +187,7 @@ def generate_text_claude(prompt):
     client = load_anthropic_client()
     response = client.messages.create(
         model="claude-3-sonnet-20240229",
-        max_tokens=1000,
+        max_tokens=250,
         temperature=0.7,
         messages=[
             {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
@@ -196,8 +197,16 @@ def generate_text_claude(prompt):
 
 def generate_text_gemini(prompt):
     model = load_gemini_client()
-    response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
+    #response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
+    response = model.generate_content(
+    f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
+    generation_config=genai.types.GenerationConfig(
+        temperature=0.7,
+        max_output_tokens=250,
+    ),
+    )
     return response.text.strip()
+
 
 # Update the all_models dictionary
 all_models = {
