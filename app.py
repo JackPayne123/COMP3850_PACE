@@ -25,6 +25,8 @@ warnings.filterwarnings("ignore")
 import subprocess
 import sys
 
+st.set_page_config(page_title="Text Verification", layout="wide")
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -353,7 +355,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
 
-st.set_page_config(page_title="Text Verification", layout="wide")
+
 
 # Custom CSS to make tables consistent and improve appearance
 st.markdown("""
