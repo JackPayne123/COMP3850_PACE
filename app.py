@@ -428,7 +428,9 @@ if st.button("Run Verification"):
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-            st.table(prob_df.style.format({'Probability': '{:.2%}'}).hide_index())
+            st.table(prob_df.style.format({'Probability': '{:.2%}'}).set_index('column', inplace=True))
+
+
             
             st.markdown("### Detailed Metrics")
             metrics_df = pd.DataFrame(results).T
