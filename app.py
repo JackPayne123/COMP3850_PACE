@@ -422,8 +422,7 @@ if st.button("Run Verification"):
         
         # Display results in the results container
         with results_container.container():
-            st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
+
 
 
             st.markdown("### Verification Results")
@@ -432,7 +431,7 @@ if st.button("Run Verification"):
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
+                st.markdown(f"**Authorship Result:** {authorship_result}")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
             st.markdown("### Model Probabilities")
@@ -448,3 +447,6 @@ if st.button("Run Verification"):
                 'Perplexity (Lower is better)': '{:.4f}'
             })
             st.write(metrics_styler.to_html(), unsafe_allow_html=True)
+            
+            st.markdown("### Final Iteration for Authentic Model")
+            st.markdown(authentic_regen)
