@@ -420,11 +420,15 @@ if st.button("Run Verification"):
         # Display results in the results container
         with results_container.container():
             st.markdown("### Verification Results")
-            st.markdown(f"**Authorship Result:** {authorship_result}")
+            st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
+            st.markdown(f"The predicted original model that generated the text is {model_choice}")
+            
+            st.markdown("### Final Iteration for Authentic Model")
+            st.markdown(authentic_regen)
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-            st.table(prob_df.style.format({'Probability': '{:.2%}'}))
+            st.table(prob_df.style.format({'Probability': '{:.2%}'}).hide_index())
             
             st.markdown("### Detailed Metrics")
             metrics_df = pd.DataFrame(results).T
@@ -432,4 +436,4 @@ if st.button("Run Verification"):
                 'BERTScore': '{:.4f}',
                 'Cosine Similarity': '{:.4f}',
                 'Perplexity': '{:.4f}'
-            }))
+            }), use_container_width=True)
