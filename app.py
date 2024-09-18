@@ -446,4 +446,4 @@ if st.button("Run Verification"):
                 'Cosine Similarity': '{:.4f}',
                 'Perplexity': '{:.4f}'
             })
-            st.write(metrics_styler.to_html(), unsafe_allow_html=True)s
+            st.write(metrics_styler.to_html(), unsafe_allow_html=True)
