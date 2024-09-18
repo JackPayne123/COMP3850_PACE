@@ -399,8 +399,8 @@ if st.button("Run Verification"):
         iterations = 5
         authentic_regen, results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
-        # Authorship Probabilities and Final Result Card
-        with st.card("Authorship Analysis"):
+        # Authorship Probabilities and Final Result Expander
+        with st.expander("Authorship Analysis", expanded=True):
             st.markdown("### Authorship Probabilities")
             for i, model_name in enumerate(model_names):
                 if i < len(probabilities):
@@ -410,10 +410,10 @@ if st.button("Run Verification"):
             
             st.markdown(f"### Final Result: **{authorship_result}**")
         
-        # Detailed Metrics Cards
+        # Detailed Metrics Expanders
         st.markdown("## Detailed Metrics")
         for model_name, scores in results.items():
-            with st.card(f"{model_name} Metrics"):
+            with st.expander(f"{model_name} Metrics", expanded=True):
                 st.markdown(f"**Model**: {model_name}")
                 st.markdown(f"**Iterations**: {'5' if model_name == model_choice else '1'}")
                 st.markdown(f"- **BERTScore**: {scores['bertscore']:.4f}")
