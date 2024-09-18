@@ -16,6 +16,7 @@ import numpy as np
 import math
 from collections import Counter
 import os
+import pandas as pd
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -305,7 +306,6 @@ def determine_authorship(probabilities, model_names, threshold=0.4):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    # Create containers for iterations and results
     iteration_container = st.empty()
     results_container = st.empty()
     
@@ -323,15 +323,17 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     authentic_scores = [authentic_bertscore, authentic_cosine, authentic_perplexity]
     
     results[authentic_name] = {
-        'bertscore': authentic_bertscore,
-        'cosine': authentic_cosine,
-        'perplexity': authentic_perplexity
+        'BERTScore': authentic_bertscore,
+        'Cosine Similarity': authentic_cosine,
+        'Perplexity': authentic_perplexity
     }
     
     model_names = [authentic_name]
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
-            contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=1)  # Always use 1 iteration for contrasting models
+            with iteration_container.container():
+                st.markdown(f"### Iterations for {model_name}")
+                contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=1)
             if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
                 st.warning(f"Skipping {model_name} due to unavailability.")
                 continue
@@ -339,20 +341,15 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
             cosine = calculate_cosine_similarity(text, contrasting_regen)
             perplexity = calculate_perplexity(contrasting_regen)
             results[model_name] = {
-                'bertscore': bertscore,
-                'cosine': cosine,
-                'perplexity': perplexity
+                'BERTScore': bertscore,
+                'Cosine Similarity': cosine,
+                'Perplexity': perplexity
             }
             contrasting_scores.append([bertscore, cosine, perplexity])
             model_names.append(model_name)
     
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
-    
-    # Update the iteration container with the final result
-    with iteration_container.container():
-        st.markdown(f"### Final Regenerated Text for {authentic_name}")
-        st.markdown(authentic_regen)
     
     return authentic_regen, results, probabilities, authorship_result, model_names, results_container
 
@@ -426,12 +423,13 @@ if st.button("Run Verification"):
             st.markdown(f"**Authorship Result:** {authorship_result}")
             
             st.markdown("### Model Probabilities")
-            for model, prob in zip(model_names, probabilities):
-                st.markdown(f"- {model}: {prob:.2%}")
+            prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
+            st.table(prob_df.style.format({'Probability': '{:.2%}'}))
             
             st.markdown("### Detailed Metrics")
-            for model, metrics in results.items():
-                st.markdown(f"**{model}**")
-                st.markdown(f"- BERTScore: {metrics['bertscore']:.4f}")
-                st.markdown(f"- Cosine Similarity: {metrics['cosine']:.4f}")
-                st.markdown(f"- Perplexity: {metrics['perplexity']:.4f}")
+            metrics_df = pd.DataFrame(results).T
+            st.dataframe(metrics_df.style.format({
+                'BERTScore': '{:.4f}',
+                'Cosine Similarity': '{:.4f}',
+                'Perplexity': '{:.4f}'
+            }))
