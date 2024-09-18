@@ -420,19 +420,27 @@ if st.button("Run Verification"):
         # Clear the iteration container
         iteration_container.empty()
         
+        # Store all generations
+        all_generations = {model_choice: authentic_regen}
+        for model_name, model_func in all_models.items():
+            if model_name != model_choice:
+                all_generations[model_name] = iterative_regeneration(st.session_state.input_text, model_func, model_name, iterations=1)
+        
         # Display results in the results container
         with results_container.container():
+            st.markdown("### Final Iteration for Authentic Model")
+            st.markdown(authentic_regen)
+            
             st.markdown("### Verification Results")
             if authorship_result == "Authentic":
                 st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
+                st.markdown(f"**Authorship Result:** ({predicted_model})")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
-            st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
+
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
@@ -447,3 +455,32 @@ if st.button("Run Verification"):
                 'Perplexity': '{:.4f}'
             })
             st.write(metrics_styler.to_html(), unsafe_allow_html=True)
+            
+            # Add dropdown to view all generations
+            st.markdown("### View All Generations")
+            selected_model = st.selectbox("Select a model to view its generation:", list(all_generations.keys()))
+            st.markdown(f"**Generation by {selected_model}:**")
+            st.markdown(all_generations[selected_model])
+
+st.set_page_config(page_title="Text Verification", layout="wide")
+
+# Custom CSS to make tables consistent and improve appearance
+st.markdown("""
+<style>
+    .stTable, .dataframe {
+        width: 100%;
+        max-width: 100%;
+    }
+    .stTable td, .stTable th, .dataframe td, .dataframe th {
+        text-align: left;
+        padding: 8px;
+    }
+    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .stTable th, .dataframe th {
+        background-color: #4CAF50;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
