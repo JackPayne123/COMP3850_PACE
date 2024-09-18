@@ -75,7 +75,7 @@ def calculate_bleu(reference, candidate, weights=[0.25, 0.25, 0.25, 0.25]):
     
     return bp * s
 
-st.sidebar.header("Additional API Keys (Optional)")
+st.sidebar.header("Additional API Keys 2 (Optional)")
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 anthropic_api_key = st.sidebar.text_input("Anthropic API Key", type="password")
 gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
