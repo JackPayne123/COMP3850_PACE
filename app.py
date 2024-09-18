@@ -27,6 +27,27 @@ import sys
 
 st.set_page_config(page_title="Text Verification", layout="wide")
 
+# Custom CSS to make tables consistent and improve appearance
+st.markdown("""
+<style>
+    .stTable, .dataframe {
+        width: 100%;
+        max-width: 100%;
+    }
+    .stTable td, .stTable th, .dataframe td, .dataframe th {
+        text-align: left;
+        padding: 8px;
+    }
+    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .stTable th, .dataframe th {
+        background-color: #4CAF50;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -449,7 +470,11 @@ if st.button("Run Verification"):
         all_generations = {model_choice: authentic_regen}
         for model_name, model_func in all_models.items():
             if model_name != model_choice:
-                all_generations[model_name] = iterative_regeneration(st.session_state.input_text, model_func, model_name, iterations=1)
+                contrasting_regen = iterative_regeneration(st.session_state.input_text, model_func, model_name, iterations=1)
+                if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+                    st.warning(f"Skipping {model_name} due to unavailability.")
+                    continue
+                all_generations[model_name] = contrasting_regen
         
         # Display results in the results container
         with results_container.container():
@@ -462,7 +487,7 @@ if st.button("Run Verification"):
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** ({predicted_model})")
+                st.markdown(f"**Authorship Result:** ({authorship_result})")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
 
