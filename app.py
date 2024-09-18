@@ -353,6 +353,29 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
 
+st.set_page_config(page_title="Text Verification", layout="wide")
+
+# Custom CSS to make tables consistent and improve appearance
+st.markdown("""
+<style>
+    .stTable, .dataframe {
+        width: 100%;
+        max-width: 100%;
+    }
+    .stTable td, .stTable th, .dataframe td, .dataframe th {
+        text-align: left;
+        padding: 8px;
+    }
+    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .stTable th, .dataframe th {
+        background-color: #4CAF50;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Text Input Options")
 
 input_option = st.radio(
@@ -461,26 +484,3 @@ if st.button("Run Verification"):
             selected_model = st.selectbox("Select a model to view its generation:", list(all_generations.keys()))
             st.markdown(f"**Generation by {selected_model}:**")
             st.markdown(all_generations[selected_model])
-
-st.set_page_config(page_title="Text Verification", layout="wide")
-
-# Custom CSS to make tables consistent and improve appearance
-st.markdown("""
-<style>
-    .stTable, .dataframe {
-        width: 100%;
-        max-width: 100%;
-    }
-    .stTable td, .stTable th, .dataframe td, .dataframe th {
-        text-align: left;
-        padding: 8px;
-    }
-    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
-        background-color: #f2f2f2;
-    }
-    .stTable th, .dataframe th {
-        background-color: #4CAF50;
-        color: white;
-    }
-</style>
-""", unsafe_allow_html=True)
