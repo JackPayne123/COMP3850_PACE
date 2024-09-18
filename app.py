@@ -427,8 +427,8 @@ if st.button("Run Verification"):
             st.markdown(authentic_regen)
             
             st.markdown("### Model Probabilities")
-            prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-            prob_styler = prob_df.style.format({'Probability': '{:.2%}'}).hide_index()
+            prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities}, index=False)
+            prob_styler = prob_df.style.format({'Probability': '{:.2%}'})
             st.write(prob_styler.to_html(), unsafe_allow_html=True)
             
             st.markdown("### Detailed Metrics")
