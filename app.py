@@ -351,7 +351,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
     
-    return authentic_regen, results, probabilities, authorship_result, model_names, results_container
+    return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
 
 st.title("Text Input Options")
 
@@ -415,13 +415,21 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
-        authentic_regen, results, probabilities, authorship_result, model_names, results_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        
+        # Clear the iteration container
+        iteration_container.empty()
         
         # Display results in the results container
         with results_container.container():
             st.markdown("### Verification Results")
-            st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
-            st.markdown(f"The predicted original model that generated the text is {model_choice}")
+            if authorship_result == "Authentic":
+                st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
+                st.markdown(f"The predicted original model that generated the text is {model_choice}")
+            else:
+                predicted_model = model_names[np.argmax(probabilities)]
+                st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
+                st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
             st.markdown("### Final Iteration for Authentic Model")
             st.markdown(authentic_regen)
