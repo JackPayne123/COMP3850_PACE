@@ -428,7 +428,8 @@ if st.button("Run Verification"):
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-            st.table(prob_df.style.format({'Probability': '{:.2%}'}).set_index('column', inplace=True))
+           # prob_df
+            st.table(prob_df.style.format({'Probability': '{:.2%}'}).df.assign(hack='').set_index('hack'))
 
 
             
