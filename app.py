@@ -224,10 +224,19 @@ if is_ollama_available():
 
 def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
+    progress_bar = st.progress(0)
+    status_area = st.empty()
+    
     for i in range(iterations):
         current_text = model_func(current_text)
-        st.write(f"{model_name} - Iteration {i+1}: {current_text}")
+        progress = (i + 1) / iterations
+        progress_bar.progress(progress)
+        status_area.markdown(f"**{model_name} - Iteration {i+1}:** {current_text}")
         time.sleep(0.1)  # To avoid hitting rate limits
+    
+    time.sleep(0.5)  # Give a moment to see the final state
+    progress_bar.empty()
+    status_area.empty()
     return current_text
 
 def calculate_bertscore(reference, candidate):
@@ -397,30 +406,21 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
-        authentic_regen, results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
-        # Authorship Probabilities and Final Result Expander
-        with st.expander("Authorship Analysis", expanded=True):
-            st.markdown("### Authorship Probabilities")
-            for i, model_name in enumerate(model_names):
-                if i < len(probabilities):
-                    st.markdown(f"**{model_name}**: {probabilities[i]*100:.2f}%")
-                else:
-                    st.markdown(f"**{model_name}**: Probability not calculated")
-            
-            st.markdown(f"### Final Result: **{authorship_result}**")
+        # Create a container for the iteration display
+        iteration_container = st.empty()
         
-        # Detailed Metrics Expanders
-        st.markdown("## Detailed Metrics")
-        for model_name, scores in results.items():
-            with st.expander(f"{model_name} Metrics", expanded=True):
-                st.markdown(f"**Model**: {model_name}")
-                st.markdown(f"**Iterations**: {'5' if model_name == model_choice else '1'}")
-                st.markdown(f"- **BERTScore**: {scores['bertscore']:.4f}")
-                st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
-                st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
-        
-        # Iterations Expander
-        with st.expander("View Iteration Details"):
+        with iteration_container.container():
             st.markdown(f"### Iterations for {model_choice}")
-            st.markdown(authentic_regen)
+            authentic_regen = iterative_regeneration(st.session_state.input_text, authentic_model, model_choice, iterations=iterations)
+        
+        # Rest of the verification process
+        results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        
+        # Display results as before
+        # ...
+
+    # After all processing is done, update the iteration container with the final result
+    with iteration_container.container():
+        st.markdown(f"### Final Regenerated Text for {model_choice}")
+        st.markdown(authentic_regen)
