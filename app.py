@@ -98,7 +98,7 @@ def load_gpt2():
 @st.cache_resource
 def load_gemini_client():
     genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
-    return genai.GenerativeModel('gemini-pro')
+    return genai.GenerativeModel('gemini-1.5-flash')
 
 def is_ollama_available():
     # Check if we're running in a Streamlit cloud environment
@@ -422,17 +422,18 @@ if st.button("Run Verification"):
         
         # Display results in the results container
         with results_container.container():
+            st.markdown("### Final Iteration for Authentic Model")
+            st.markdown(authentic_regen)
+
+
             st.markdown("### Verification Results")
             if authorship_result == "Authentic":
-                st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
+                st.markdown(f"**Authorship Result:** {authorship_result}")
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
                 st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
-            
-            st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
@@ -444,6 +445,6 @@ if st.button("Run Verification"):
             metrics_styler = metrics_df.style.format({
                 'BERTScore': '{:.4f}',
                 'Cosine Similarity': '{:.4f}',
-                'Perplexity': '{:.4f}'
+                'Perplexity (Lower is better)': '{:.4f}'
             })
             st.write(metrics_styler.to_html(), unsafe_allow_html=True)
