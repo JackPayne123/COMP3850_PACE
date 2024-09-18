@@ -428,15 +428,14 @@ if st.button("Run Verification"):
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-           # prob_df
-            st.table(prob_df.style.format({'Probability': '{:.2%}'}).assign(hack='').set_index('hack'))
-
-
+            prob_styler = prob_df.style.format({'Probability': '{:.2%}'}).hide_index()
+            st.write(prob_styler.to_html(), unsafe_allow_html=True)
             
             st.markdown("### Detailed Metrics")
             metrics_df = pd.DataFrame(results).T
-            st.dataframe(metrics_df.style.format({
+            metrics_styler = metrics_df.style.format({
                 'BERTScore': '{:.4f}',
                 'Cosine Similarity': '{:.4f}',
                 'Perplexity': '{:.4f}'
-            }), use_container_width=True)
+            })
+            st.write(metrics_styler.to_html(), unsafe_allow_html=True)
