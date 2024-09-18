@@ -25,6 +25,29 @@ warnings.filterwarnings("ignore")
 import subprocess
 import sys
 
+st.set_page_config(page_title="Text Verification", layout="wide")
+
+# Custom CSS to make tables consistent and improve appearance
+st.markdown("""
+<style>
+    .stTable, .dataframe {
+        width: 100%;
+        max-width: 100%;
+    }
+    .stTable td, .stTable th, .dataframe td, .dataframe th {
+        text-align: left;
+        padding: 8px;
+    }
+    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .stTable th, .dataframe th {
+        background-color: #4CAF50;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -225,11 +248,13 @@ if is_ollama_available():
 
 def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
+    all_iterations = [initial_text]
     progress_bar = st.progress(0)
     status_area = st.empty()
     
     for i in range(iterations):
         current_text = model_func(current_text)
+        all_iterations.append(current_text)
         progress = (i + 1) / iterations
         progress_bar.progress(progress)
         status_area.markdown(f"**{model_name} - Iteration {i+1}:** {current_text}")
@@ -238,7 +263,7 @@ def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     time.sleep(0.5)  # Give a moment to see the final state
     progress_bar.empty()
     status_area.empty()
-    return current_text
+    return all_iterations
 
 def calculate_bertscore(reference, candidate):
     P, R, F1 = score([candidate], [reference], lang="en", verbose=False)
@@ -260,10 +285,10 @@ import numpy as np
 def normalize_scores(scores):
     normalized = np.array(scores, dtype=float)
     # Invert perplexity so that lower is better
-    normalized[-1] = 1 / (1 + normalized[-1])
+    normalized[:, 2] = 1 / (1 + normalized[:, 2])
     
     # Min-max normalization for each metric
-    for i in range(len(normalized)):
+    for i in range(normalized.shape[1]):
         min_val = np.min(normalized[:, i])
         max_val = np.max(normalized[:, i])
         if max_val > min_val:
@@ -311,14 +336,14 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     with iteration_container.container():
         st.markdown(f"### Iterations for {authentic_name}")
-        authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
+        authentic_regens = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
     
     results = {}
     contrasting_scores = []
     
-    authentic_bertscore = calculate_bertscore(text, authentic_regen)
-    authentic_cosine = calculate_cosine_similarity(text, authentic_regen)
-    authentic_perplexity = calculate_perplexity(authentic_regen)
+    authentic_bertscore = calculate_bertscore(text, authentic_regens[-1])
+    authentic_cosine = calculate_cosine_similarity(text, authentic_regens[-1])
+    authentic_perplexity = calculate_perplexity(authentic_regens[-1])
     
     authentic_scores = [authentic_bertscore, authentic_cosine, authentic_perplexity]
     
@@ -329,17 +354,19 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     }
     
     model_names = [authentic_name]
+    all_generations = {f"{authentic_name} (Iteration {i})": regen for i, regen in enumerate(authentic_regens)}
+    
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
             with iteration_container.container():
                 st.markdown(f"### Iterations for {model_name}")
                 contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=1)
-            if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+            if isinstance(contrasting_regen[0], str) and ("Error using Ollama" in contrasting_regen[0] or "Ollama (LLaMA) is not available" in contrasting_regen[0]):
                 st.warning(f"Skipping {model_name} due to unavailability.")
                 continue
-            bertscore = calculate_bertscore(text, contrasting_regen)
-            cosine = calculate_cosine_similarity(text, contrasting_regen)
-            perplexity = calculate_perplexity(contrasting_regen)
+            bertscore = calculate_bertscore(text, contrasting_regen[-1])
+            cosine = calculate_cosine_similarity(text, contrasting_regen[-1])
+            perplexity = calculate_perplexity(contrasting_regen[-1])
             results[model_name] = {
                 'BERTScore': bertscore,
                 'Cosine Similarity': cosine,
@@ -347,11 +374,35 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
             }
             contrasting_scores.append([bertscore, cosine, perplexity])
             model_names.append(model_name)
+            all_generations[model_name] = contrasting_regen[-1]
     
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
     
-    return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
+    return authentic_regens, results, probabilities, authorship_result, model_names, all_generations, results_container, iteration_container
+
+
+
+# Custom CSS to make tables consistent and improve appearance
+st.markdown("""
+<style>
+    .stTable, .dataframe {
+        width: 100%;
+        max-width: 100%;
+    }
+    .stTable td, .stTable th, .dataframe td, .dataframe th {
+        text-align: left;
+        padding: 8px;
+    }
+    .stTable tr:nth-child(even), .dataframe tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    .stTable th, .dataframe th {
+        background-color: #4CAF50;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("Text Input Options")
 
@@ -415,7 +466,7 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
-        authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        authentic_regens, results, probabilities, authorship_result, model_names, all_generations, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
         # Clear the iteration container
         iteration_container.empty()
@@ -432,7 +483,7 @@ if st.button("Run Verification"):
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
             st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
+            st.markdown(authentic_regens[-1])
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
@@ -446,4 +497,10 @@ if st.button("Run Verification"):
                 'Cosine Similarity': '{:.4f}',
                 'Perplexity': '{:.4f}'
             })
-            st.write(metrics_styler.to_html(), unsafe_allow_html=True)s
+            st.write(metrics_styler.to_html(), unsafe_allow_html=True)
+            
+            # Add expandable dropdowns to view all generations
+            st.markdown("### View All Generations")
+            for model, generation in all_generations.items():
+                with st.expander(f"Generation by {model}"):
+                    st.markdown(generation)
