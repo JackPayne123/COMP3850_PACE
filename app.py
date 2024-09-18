@@ -354,6 +354,8 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     }
     
     model_names = [authentic_name]
+    all_generations = {f"{authentic_name} (Iteration {i})": regen for i, regen in enumerate(authentic_regens)}
+    
     for model_name, model_func in all_models.items():
         if model_name != authentic_name:
             with iteration_container.container():
@@ -372,11 +374,12 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
             }
             contrasting_scores.append([bertscore, cosine, perplexity])
             model_names.append(model_name)
+            all_generations[model_name] = contrasting_regen[-1]
     
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
     
-    return authentic_regens, results, probabilities, authorship_result, model_names, results_container, iteration_container
+    return authentic_regens, results, probabilities, authorship_result, model_names, all_generations, results_container, iteration_container
 
 
 
@@ -463,20 +466,10 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
-        authentic_regens, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        authentic_regens, results, probabilities, authorship_result, model_names, all_generations, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
         # Clear the iteration container
         iteration_container.empty()
-        
-        # Store all generations
-        all_generations = {f"{model_choice} (Iteration {i})": regen for i, regen in enumerate(authentic_regens)}
-        for model_name, model_func in all_models.items():
-            if model_name != model_choice:
-                contrasting_regen = iterative_regeneration(st.session_state.input_text, model_func, model_name, iterations=1)
-                if isinstance(contrasting_regen[0], str) and ("Error using Ollama" in contrasting_regen[0] or "Ollama (LLaMA) is not available" in contrasting_regen[0]):
-                    st.warning(f"Skipping {model_name} due to unavailability.")
-                    continue
-                all_generations[model_name] = contrasting_regen[-1]  # Store only the last iteration for contrasting models
         
         # Display results in the results container
         with results_container.container():
@@ -506,8 +499,8 @@ if st.button("Run Verification"):
             })
             st.write(metrics_styler.to_html(), unsafe_allow_html=True)
             
-            # Add dropdown to view all generations
+            # Add expandable dropdowns to view all generations
             st.markdown("### View All Generations")
-            selected_generation = st.selectbox("Select a model and iteration to view its generation:", list(all_generations.keys()))
-            st.markdown(f"**{selected_generation}:**")
-            st.markdown(all_generations[selected_generation])
+            for model, generation in all_generations.items():
+                with st.expander(f"Generation by {model}"):
+                    st.markdown(generation)
