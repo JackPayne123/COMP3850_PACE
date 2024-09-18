@@ -98,7 +98,7 @@ def load_gpt2():
 @st.cache_resource
 def load_gemini_client():
     genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
-    return genai.GenerativeModel('gemini-1.5-flash')
+    return genai.GenerativeModel('gemini-1.5-pro')
 
 def is_ollama_available():
     # Check if we're running in a Streamlit cloud environment
@@ -200,7 +200,7 @@ def generate_text_gemini(prompt):
     model = load_gemini_client()
     #response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
     response = model.generate_content(
-    f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
+            f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
     generation_config=genai.types.GenerationConfig(
         temperature=0.7,
         max_output_tokens=250,
