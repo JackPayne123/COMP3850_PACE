@@ -129,7 +129,7 @@ def generate_text_ollama(prompt):
         import ollama
         try:
             response = ollama.chat(model='llama3', messages=[
-                {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt}"},
+                {'role': 'user', 'content': f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt}"},
             ])
             return response['message']['content']
         except Exception as e:
@@ -179,7 +179,7 @@ def generate_text_openai(prompt):
         model="gpt-4o",
         max_tokens=250,
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -191,7 +191,7 @@ def generate_text_claude(prompt):
         max_tokens=250,
         temperature=0.7,
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.content[0].text.strip()
