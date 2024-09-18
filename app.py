@@ -285,10 +285,10 @@ import numpy as np
 def normalize_scores(scores):
     normalized = np.array(scores, dtype=float)
     # Invert perplexity so that lower is better
-    normalized[-1] = 1 / (1 + normalized[-1])
+    normalized[:, 2] = 1 / (1 + normalized[:, 2])
     
     # Min-max normalization for each metric
-    for i in range(len(normalized)):
+    for i in range(normalized.shape[1]):
         min_val = np.min(normalized[:, i])
         max_val = np.max(normalized[:, i])
         if max_val > min_val:
