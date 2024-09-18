@@ -200,7 +200,7 @@ def generate_text_gemini(prompt):
     model = load_gemini_client()
     #response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
     response = model.generate_content(
-            f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result",
+            f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result",
     generation_config=genai.types.GenerationConfig(
         temperature=0.7,
         max_output_tokens=250,
