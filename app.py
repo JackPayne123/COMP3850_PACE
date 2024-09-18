@@ -75,7 +75,7 @@ def calculate_bleu(reference, candidate, weights=[0.25, 0.25, 0.25, 0.25]):
     
     return bp * s
 
-st.sidebar.header("Additional API Keys 2 (Optional)")
+st.sidebar.header("Additional API Keys (Optional)")
 openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 anthropic_api_key = st.sidebar.text_input("Anthropic API Key", type="password")
 gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
@@ -394,30 +394,33 @@ else:
                                                value=st.session_state.get('generated_text', st.session_state.input_text),
                                                help="You can edit the generated text or enter new text here.")
 
-# Comment out the iterations choice
-# iterations_choice = st.radio(
-#     "Choose iteration mode for contrasting models:",
-#     ("One-shot", "5 iterations")
-# )
-
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
-        # Always use 5 iterations for the authentic model
         iterations = 5
         authentic_regen, results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
-        st.markdown("## Authorship Probabilities")
-        for i, model_name in enumerate(model_names):
-            if i < len(probabilities):
-                st.markdown(f"**{model_name}**: {probabilities[i]*100:.2f}%")
-            else:
-                st.markdown(f"**{model_name}**: Probability not calculated")
+        # Authorship Probabilities and Final Result Card
+        with st.card("Authorship Analysis"):
+            st.markdown("### Authorship Probabilities")
+            for i, model_name in enumerate(model_names):
+                if i < len(probabilities):
+                    st.markdown(f"**{model_name}**: {probabilities[i]*100:.2f}%")
+                else:
+                    st.markdown(f"**{model_name}**: Probability not calculated")
+            
+            st.markdown(f"### Final Result: **{authorship_result}**")
         
-        st.markdown(f"## Final Result: **{authorship_result}**")
-        
+        # Detailed Metrics Cards
         st.markdown("## Detailed Metrics")
         for model_name, scores in results.items():
-            st.markdown(f"### {model_name} ({'5 iterations' if model_name == model_choice else '1 iteration'})")
-            st.markdown(f"- **BERTScore**: {scores['bertscore']}")
-            st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
-            st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
+            with st.card(f"{model_name} Metrics"):
+                st.markdown(f"**Model**: {model_name}")
+                st.markdown(f"**Iterations**: {'5' if model_name == model_choice else '1'}")
+                st.markdown(f"- **BERTScore**: {scores['bertscore']:.4f}")
+                st.markdown(f"- **Cosine Similarity**: {scores['cosine']:.4f}")
+                st.markdown(f"- **Perplexity**: {scores['perplexity']:.4f} (lower is better)")
+        
+        # Iterations Expander
+        with st.expander("View Iteration Details"):
+            st.markdown(f"### Iterations for {model_choice}")
+            st.markdown(authentic_regen)
