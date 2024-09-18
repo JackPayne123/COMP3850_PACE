@@ -305,7 +305,14 @@ def determine_authorship(probabilities, model_names, threshold=0.4):
         return "Inconclusive"
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations):
-    authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=5)
+    # Create containers for iterations and results
+    iteration_container = st.empty()
+    results_container = st.empty()
+    
+    with iteration_container.container():
+        st.markdown(f"### Iterations for {authentic_name}")
+        authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
+    
     results = {}
     contrasting_scores = []
     
@@ -342,7 +349,12 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
     
-    return authentic_regen, results, probabilities, authorship_result, model_names
+    # Update the iteration container with the final result
+    with iteration_container.container():
+        st.markdown(f"### Final Regenerated Text for {authentic_name}")
+        st.markdown(authentic_regen)
+    
+    return authentic_regen, results, probabilities, authorship_result, model_names, results_container
 
 st.title("Text Input Options")
 
@@ -406,21 +418,20 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
+        authentic_regen, results, probabilities, authorship_result, model_names, results_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
-        # Create a container for the iteration display
-        iteration_container = st.empty()
-        
-        with iteration_container.container():
-            st.markdown(f"### Iterations for {model_choice}")
-            authentic_regen = iterative_regeneration(st.session_state.input_text, authentic_model, model_choice, iterations=iterations)
-        
-        # Rest of the verification process
-        results, probabilities, authorship_result, model_names = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
-        
-        # Display results as before
-        # ...
-
-    # After all processing is done, update the iteration container with the final result
-    with iteration_container.container():
-        st.markdown(f"### Final Regenerated Text for {model_choice}")
-        st.markdown(authentic_regen)
+        # Display results in the results container
+        with results_container.container():
+            st.markdown("### Verification Results")
+            st.markdown(f"**Authorship Result:** {authorship_result}")
+            
+            st.markdown("### Model Probabilities")
+            for model, prob in zip(model_names, probabilities):
+                st.markdown(f"- {model}: {prob:.2%}")
+            
+            st.markdown("### Detailed Metrics")
+            for model, metrics in results.items():
+                st.markdown(f"**{model}**")
+                st.markdown(f"- BERTScore: {metrics['bertscore']:.4f}")
+                st.markdown(f"- Cosine Similarity: {metrics['cosine']:.4f}")
+                st.markdown(f"- Perplexity: {metrics['perplexity']:.4f}")
