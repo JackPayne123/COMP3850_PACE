@@ -248,11 +248,13 @@ if is_ollama_available():
 
 def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     current_text = initial_text
+    all_iterations = [initial_text]
     progress_bar = st.progress(0)
     status_area = st.empty()
     
     for i in range(iterations):
         current_text = model_func(current_text)
+        all_iterations.append(current_text)
         progress = (i + 1) / iterations
         progress_bar.progress(progress)
         status_area.markdown(f"**{model_name} - Iteration {i+1}:** {current_text}")
@@ -261,7 +263,7 @@ def iterative_regeneration(initial_text, model_func, model_name, iterations=1):
     time.sleep(0.5)  # Give a moment to see the final state
     progress_bar.empty()
     status_area.empty()
-    return current_text
+    return all_iterations
 
 def calculate_bertscore(reference, candidate):
     P, R, F1 = score([candidate], [reference], lang="en", verbose=False)
@@ -334,14 +336,14 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     with iteration_container.container():
         st.markdown(f"### Iterations for {authentic_name}")
-        authentic_regen = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
+        authentic_regens = iterative_regeneration(text, authentic_model, authentic_name, iterations=iterations)
     
     results = {}
     contrasting_scores = []
     
-    authentic_bertscore = calculate_bertscore(text, authentic_regen)
-    authentic_cosine = calculate_cosine_similarity(text, authentic_regen)
-    authentic_perplexity = calculate_perplexity(authentic_regen)
+    authentic_bertscore = calculate_bertscore(text, authentic_regens[-1])
+    authentic_cosine = calculate_cosine_similarity(text, authentic_regens[-1])
+    authentic_perplexity = calculate_perplexity(authentic_regens[-1])
     
     authentic_scores = [authentic_bertscore, authentic_cosine, authentic_perplexity]
     
@@ -357,12 +359,12 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
             with iteration_container.container():
                 st.markdown(f"### Iterations for {model_name}")
                 contrasting_regen = iterative_regeneration(text, model_func, model_name, iterations=1)
-            if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+            if isinstance(contrasting_regen[0], str) and ("Error using Ollama" in contrasting_regen[0] or "Ollama (LLaMA) is not available" in contrasting_regen[0]):
                 st.warning(f"Skipping {model_name} due to unavailability.")
                 continue
-            bertscore = calculate_bertscore(text, contrasting_regen)
-            cosine = calculate_cosine_similarity(text, contrasting_regen)
-            perplexity = calculate_perplexity(contrasting_regen)
+            bertscore = calculate_bertscore(text, contrasting_regen[-1])
+            cosine = calculate_cosine_similarity(text, contrasting_regen[-1])
+            perplexity = calculate_perplexity(contrasting_regen[-1])
             results[model_name] = {
                 'BERTScore': bertscore,
                 'Cosine Similarity': cosine,
@@ -374,7 +376,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     probabilities = calculate_authorship_probability(authentic_scores, contrasting_scores)
     authorship_result = determine_authorship(probabilities, model_names)
     
-    return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
+    return authentic_regens, results, probabilities, authorship_result, model_names, results_container, iteration_container
 
 
 
@@ -461,36 +463,34 @@ else:
 if st.button("Run Verification"):
     with st.spinner("Running verification..."):
         iterations = 5
-        authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
+        authentic_regens, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
         
         # Clear the iteration container
         iteration_container.empty()
         
         # Store all generations
-        all_generations = {model_choice: authentic_regen}
+        all_generations = {f"{model_choice} (Iteration {i})": regen for i, regen in enumerate(authentic_regens)}
         for model_name, model_func in all_models.items():
             if model_name != model_choice:
                 contrasting_regen = iterative_regeneration(st.session_state.input_text, model_func, model_name, iterations=1)
-                if "Error using Ollama" in contrasting_regen or "Ollama (LLaMA) is not available" in contrasting_regen:
+                if isinstance(contrasting_regen[0], str) and ("Error using Ollama" in contrasting_regen[0] or "Ollama (LLaMA) is not available" in contrasting_regen[0]):
                     st.warning(f"Skipping {model_name} due to unavailability.")
                     continue
-                all_generations[model_name] = contrasting_regen
+                all_generations[model_name] = contrasting_regen[-1]  # Store only the last iteration for contrasting models
         
         # Display results in the results container
         with results_container.container():
-            st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
-            
             st.markdown("### Verification Results")
             if authorship_result == "Authentic":
                 st.markdown(f"**Authorship Result:** {authorship_result} ({model_choice})")
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** ({authorship_result})")
+                st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
-
+            st.markdown("### Final Iteration for Authentic Model")
+            st.markdown(authentic_regens[-1])
             
             st.markdown("### Model Probabilities")
             prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
@@ -508,6 +508,6 @@ if st.button("Run Verification"):
             
             # Add dropdown to view all generations
             st.markdown("### View All Generations")
-            selected_model = st.selectbox("Select a model to view its generation:", list(all_generations.keys()))
-            st.markdown(f"**Generation by {selected_model}:**")
-            st.markdown(all_generations[selected_model])
+            selected_generation = st.selectbox("Select a model and iteration to view its generation:", list(all_generations.keys()))
+            st.markdown(f"**{selected_generation}:**")
+            st.markdown(all_generations[selected_generation])
