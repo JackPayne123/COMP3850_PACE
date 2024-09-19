@@ -427,11 +427,11 @@ if st.button("Run Verification"):
 
             st.markdown("### Verification Results")
             if authorship_result == "Authentic":
-                st.markdown(f"**Authorship Result:** {authorship_result}")
+                st.markdown(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
                 st.markdown(f"The predicted original model that generated the text is {model_choice}")
             else:
                 predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** {authorship_result} ({predicted_model})")
+                st.markdown(f"**Authorship Result:** {authorship_result} ")
                 st.markdown(f"The predicted original model that generated the text is {predicted_model}")
             
             st.markdown("### Model Probabilities")
