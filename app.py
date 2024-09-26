@@ -17,6 +17,7 @@ import math
 from collections import Counter
 import os
 import pandas as pd
+from sklearn.metrics import confusion_matrix, classification_report
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -450,3 +451,66 @@ if st.button("Run Verification"):
             
             st.markdown("### Final Iteration for Authentic Model")
             st.markdown(authentic_regen)
+
+def generate_test_data(models, num_samples_per_model=10):
+    test_data = []
+    for model_name, model_func in models.items():
+        for _ in range(num_samples_per_model):
+            prompt = f"Generate a random paragraph about any topic. Be creative and diverse."
+            text = model_func(prompt)
+            test_data.append({"text": text, "true_author": model_name})
+    return test_data
+
+def run_automated_tests(test_data, all_models):
+    results = []
+    for sample in test_data:
+        text = sample["text"]
+        true_author = sample["true_author"]
+        for model_name, model_func in all_models.items():
+            _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(text, model_func, model_name, all_models, iterations=3)
+            predicted_author = model_names[np.argmax(probabilities)]
+            results.append({
+                "true_author": true_author,
+                "tested_model": model_name,
+                "predicted_author": predicted_author,
+                "authorship_result": authorship_result
+            })
+    return results
+
+def analyze_results(results):
+    df = pd.DataFrame(results)
+    
+    # Overall accuracy
+    accuracy = (df["true_author"] == df["predicted_author"]).mean()
+    
+    # Confusion matrix
+    true_labels = df["true_author"]
+    predicted_labels = df["predicted_author"]
+    cm = confusion_matrix(true_labels, predicted_labels, labels=df["true_author"].unique())
+    
+    # Classification report
+    report = classification_report(true_labels, predicted_labels, output_dict=True)
+    
+    return accuracy, cm, report
+
+# Add this to your Streamlit app
+if st.button("Run Automated Tests"):
+    with st.spinner("Running automated tests..."):
+        test_data = generate_test_data(all_models, num_samples_per_model=5)
+        test_results = run_automated_tests(test_data, all_models)
+        accuracy, cm, report = analyze_results(test_results)
+        
+        st.markdown("### Automated Test Results")
+        st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
+        
+        st.markdown("### Confusion Matrix")
+        cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
+        st.write(cm_df)
+        
+        st.markdown("### Classification Report")
+        report_df = pd.DataFrame(report).transpose()
+        st.write(report_df)
+        
+        st.markdown("### Detailed Results")
+        results_df = pd.DataFrame(test_results)
+        st.write(results_df)
