@@ -18,6 +18,7 @@ from collections import Counter
 import os
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
+from requests.exceptions import InternalServerError
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -98,8 +99,12 @@ def load_gpt2():
 
 @st.cache_resource
 def load_gemini_client():
-    genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
-    return genai.GenerativeModel('gemini-1.5-pro')
+    try:
+        genai.configure(api_key=gemini_api_key or st.secrets["GEMINI_API_KEY"])
+        return genai.GenerativeModel('gemini-1.5-pro')
+    except Exception as e:
+        st.error(f"Failed to load Gemini client: {e}")
+        return None
 
 def is_ollama_available():
     # Check if we're running in a Streamlit cloud environment
@@ -170,7 +175,10 @@ def generate_text(model, prompt):
     elif model == "Claude":
         return generate_text_claude_simple(prompt)
     elif model == "Gemini":
-        return generate_text_gemini_simple(prompt)
+        gemini_response = generate_text_gemini(prompt)
+        if gemini_response.startswith("Failed"):
+            return "Gemini model is currently unavailable."
+        return gemini_response
     elif model == "Ollama (LLaMA)":
         return generate_text_ollama_simple(prompt)
 
@@ -197,18 +205,25 @@ def generate_text_claude(prompt):
     )
     return response.content[0].text.strip()
 
-def generate_text_gemini(prompt):
+def generate_text_gemini(prompt, retries=3, delay=2):
     model = load_gemini_client()
-    #response = model.generate_content(f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only: {prompt} Remember to only output the final result")
-    response = model.generate_content(
-            f"You are a professional language facilitator. You should rewrite the following and output the final result only: {prompt} Remember to only output the final result",
-    generation_config=genai.types.GenerationConfig(
-        temperature=0.7,
-        max_output_tokens=250,
-    ),
-    )
-    return response.text.strip()
-
+    for attempt in range(retries):
+        try:
+            response = model.generate_content(
+                f"You are a professional language facilitator. You should rewrite the following and output the final result only: {prompt} Remember to only output the final result",
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.7,
+                    max_output_tokens=250,
+                ),
+            )
+            return response.text.strip()
+        except InternalServerError as e:
+            st.error(f"Internal server error with Gemini API: {e}. Retrying ({attempt + 1}/{retries})...")
+            time.sleep(delay)
+        except Exception as e:
+            st.error(f"An unexpected error occurred with Gemini API: {e}")
+            break
+    return "Failed to generate text using Gemini after multiple attempts."
 
 # Update the all_models dictionary
 all_models = {
@@ -472,14 +487,25 @@ def run_automated_tests(test_data, all_models):
         text = sample["text"]
         true_author = sample["true_author"]
         for model_name, model_func in all_models.items():
-            _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(text, model_func, model_name, all_models, iterations=3)
-            predicted_author = model_names[np.argmax(probabilities)]
-            results.append({
-                "true_author": true_author,
-                "tested_model": model_name,
-                "predicted_author": predicted_author,
-                "authorship_result": authorship_result
-            })
+            try:
+                _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                    text, model_func, model_name, all_models, iterations=3
+                )
+                predicted_author = model_names[np.argmax(probabilities)]
+                results.append({
+                    "true_author": true_author,
+                    "tested_model": model_name,
+                    "predicted_author": predicted_author,
+                    "authorship_result": authorship_result
+                })
+            except Exception as e:
+                st.warning(f"Error testing model {model_name}: {e}")
+                results.append({
+                    "true_author": true_author,
+                    "tested_model": model_name,
+                    "predicted_author": "Error",
+                    "authorship_result": f"Error: {e}"
+                })
     return results
 
 def analyze_results(results):
@@ -503,19 +529,22 @@ if st.button("Run Automated Tests"):
     with st.spinner("Running automated tests..."):
         test_data = generate_test_data(all_models, num_samples_per_model=5)
         test_results = run_automated_tests(test_data, all_models)
-        accuracy, cm, report = analyze_results(test_results)
-        
-        st.markdown("### Automated Test Results")
-        st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
-        
-        st.markdown("### Confusion Matrix")
-        cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
-        st.write(cm_df)
-        
-        st.markdown("### Classification Report")
-        report_df = pd.DataFrame(report).transpose()
-        st.write(report_df)
-        
-        st.markdown("### Detailed Results")
-        results_df = pd.DataFrame(test_results)
-        st.write(results_df)
+        if test_results:
+            accuracy, cm, report = analyze_results(test_results)
+            
+            st.markdown("### Automated Test Results")
+            st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
+            
+            st.markdown("### Confusion Matrix")
+            cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
+            st.write(cm_df)
+            
+            st.markdown("### Classification Report")
+            report_df = pd.DataFrame(report).transpose()
+            st.write(report_df)
+            
+            st.markdown("### Detailed Results")
+            results_df = pd.DataFrame(test_results)
+            st.write(results_df)
+        else:
+            st.error("No test results available. Please check the logs for errors.")
