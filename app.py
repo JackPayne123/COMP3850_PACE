@@ -18,7 +18,7 @@ from collections import Counter
 import os
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
-from requests.exceptions import InternalServerError
+from google.api_core.exceptions import InternalServerError
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -207,6 +207,9 @@ def generate_text_claude(prompt):
 
 def generate_text_gemini(prompt, retries=3, delay=2):
     model = load_gemini_client()
+    if model is None:
+        return "Gemini model client is not available."
+    
     for attempt in range(retries):
         try:
             response = model.generate_content(
