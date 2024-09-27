@@ -454,9 +454,16 @@ if st.button("Run Verification"):
 
 def generate_test_data(models, num_samples_per_model=10):
     test_data = []
+    prompts = [
+        "Explain a complex scientific concept in simple terms.",
+        "Write a short story about an unexpected adventure.",
+        "Describe the process of making a traditional dish from your culture.",
+        "Discuss the potential impacts of a new technology on society.",
+        "Create a poem about the changing seasons."
+    ]
     for model_name, model_func in models.items():
-        for _ in range(num_samples_per_model):
-            prompt = f"Generate a random paragraph about any topic. Be creative and diverse."
+        for i in range(num_samples_per_model):
+            prompt = prompts[i % len(prompts)]
             text = model_func(prompt)
             test_data.append({"text": text, "true_author": model_name})
     return test_data
