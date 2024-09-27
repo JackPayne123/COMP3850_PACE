@@ -495,14 +495,18 @@ def run_automated_tests(test_data, all_models):
                     text, model_func, model_name, all_models, iterations=3
                 )
                 predicted_author = model_names[np.argmax(probabilities)]
-                results.append({
+                result = {
                     "true_author": true_author,
                     "tested_model": model_name,
                     "predicted_author": predicted_author,
                     "authorship_result": authorship_result
-                })
+                }
+                results.append(result)
+                print(f"Test result: {result}")  # Print each result to the terminal
             except Exception as e:
-                st.warning(f"Error testing model {model_name}: {e}")
+                error_msg = f"Error testing model {model_name}: {e}"
+                st.warning(error_msg)
+                print(error_msg)  # Print error to the terminal
                 results.append({
                     "true_author": true_author,
                     "tested_model": model_name,
@@ -532,6 +536,7 @@ if st.button("Run Automated Tests"):
     with st.spinner("Running automated tests..."):
         test_data = generate_test_data(all_models, num_samples_per_model=5)
         test_results = run_automated_tests(test_data, all_models)
+        
         if test_results:
             accuracy, cm, report = analyze_results(test_results)
             
@@ -541,13 +546,21 @@ if st.button("Run Automated Tests"):
             st.markdown("### Confusion Matrix")
             cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
             st.write(cm_df)
+            print("Confusion Matrix:")
+            print(cm_df)  # Print confusion matrix to the terminal
             
             st.markdown("### Classification Report")
             report_df = pd.DataFrame(report).transpose()
             st.write(report_df)
+            print("\nClassification Report:")
+            print(report_df)  # Print classification report to the terminal
             
             st.markdown("### Detailed Results")
             results_df = pd.DataFrame(test_results)
             st.write(results_df)
+            print("\nDetailed Results:")
+            print(results_df)  # Print detailed results to the terminal
         else:
-            st.error("No test results available. Please check the logs for errors.")
+            error_msg = "No test results available. Please check the logs for errors."
+            st.error(error_msg)
+            print(error_msg)  # Print error to the terminal
