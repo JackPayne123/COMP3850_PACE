@@ -19,6 +19,7 @@ import os
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
 from google.api_core.exceptions import InternalServerError
+import ast
 
 # Silence warnings
 warnings.filterwarnings("ignore")
@@ -698,6 +699,14 @@ with tab2:
 
                 # Handle regenerations
                 if 'regenerations' in results_df.columns:
+                    def parse_regenerations(regen_str):
+                        try:
+                            return ast.literal_eval(regen_str)
+                        except:
+                            return {}
+
+                    results_df['regenerations'] = results_df['regenerations'].apply(parse_regenerations)
+
                     for i in range(5):  # 5 regenerations for authentic model
                         col_name = f'authentic_regeneration_{i+1}'
                         results_df[col_name] = results_df['regenerations'].apply(
@@ -711,7 +720,7 @@ with tab2:
                                 lambda x: x.get(model, [''])[0] if isinstance(x.get(model), list) and len(x.get(model)) > 0 else ''
                             )
 
-                    results_df = results_df.drop(columns=['regenerations'])
+                    #results_df = results_df.drop(columns=['regenerations'])
 
                 csv = results_df.to_csv(index=False)
                 st.download_button(
