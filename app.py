@@ -551,7 +551,7 @@ with tab2:
         start_time = time.time()
 
         for prompt in prompts:
-            for _ in range(num_repetitions):  # Use the user-selected number of repetitions
+            for _ in range(num_repetitions):
                 try:
                     # Generate text using the selected authentic model
                     if authentic_model == "OpenAI":
@@ -567,7 +567,7 @@ with tab2:
 
                     # Verify authorship
                     with st.empty():
-                        _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                        _, metrics, probabilities, authorship_result, model_names, _, _ = verify_authorship(
                             original_text, all_models[authentic_model], authentic_model, all_models, iterations=5
                         )
                     
@@ -577,7 +577,8 @@ with tab2:
                         "true_author": authentic_model,
                         "predicted_author": predicted_author,
                         "authorship_result": authorship_result,
-                        "probabilities": dict(zip(model_names, probabilities))
+                        "probabilities": dict(zip(model_names, probabilities)),
+                        "metrics": metrics
                     }
                     results.append(result)
                     print(f"Test result: {result}")  # Print each result to the terminal
@@ -590,7 +591,8 @@ with tab2:
                         "true_author": authentic_model,
                         "predicted_author": "Error",
                         "authorship_result": f"Error: {e}",
-                        "probabilities": {}
+                        "probabilities": {},
+                        "metrics": {}
                     })
                 
                 # Update progress and info
@@ -638,20 +640,29 @@ with tab2:
                                         set(result['predicted_author'] for result in test_results))
                 cm_df = pd.DataFrame(cm, index=unique_authors, columns=unique_authors)
                 st.write(cm_df)
-                print("Confusion Matrix:")
-                print(cm_df)  # Print confusion matrix to the terminal
                 
                 st.markdown("### Classification Report")
                 report_df = pd.DataFrame(report).transpose()
                 st.write(report_df)
-                print("\nClassification Report:")
-                print(report_df)  # Print classification report to the terminal
                 
                 st.markdown("### Detailed Results")
                 results_df = pd.DataFrame(test_results)
                 st.write(results_df)
-                print("\nDetailed Results:")
-                print(results_df)  # Print detailed results to the terminal
+                
+                st.markdown("### Metric Scores")
+                for i, result in enumerate(test_results):
+                    st.markdown(f"**Test {i+1}**")
+                    metrics_df = pd.DataFrame(result['metrics']).T
+                    st.write(metrics_df)
+                
+                # Create a downloadable CSV file
+                csv = results_df.to_csv(index=False)
+                st.download_button(
+                    label="Download Results as CSV",
+                    data=csv,
+                    file_name="automated_test_results.csv",
+                    mime="text/csv",
+                )
             else:
                 error_msg = "No test results available. Please check the logs for errors."
                 st.error(error_msg)
