@@ -522,8 +522,8 @@ with tab2:
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
         total_tests = len(prompts) * len(all_models)
-        progress_container = st.empty()
-        info_container = st.empty()
+        progress_bar = st.progress(0)
+        status_text = st.empty()
         test_counter = 0
         start_time = time.time()
 
@@ -563,18 +563,18 @@ with tab2:
                 
                 # Update progress and info
                 test_counter += 1
-                progress_percentage = (test_counter / total_tests) * 100
-                progress_container.progress(progress_percentage / 100)
+                progress_percentage = test_counter / total_tests
+                progress_bar.progress(progress_percentage)
                 
                 elapsed_time = time.time() - start_time
                 estimated_total_time = (elapsed_time / test_counter) * total_tests
                 estimated_remaining_time = estimated_total_time - elapsed_time
                 
-                info_container.info(f"Progress: {progress_percentage:.1f}% ({test_counter}/{total_tests} tests completed)\n"
-                                    f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
+                status_text.text(f"Progress: {progress_percentage:.1%} ({test_counter}/{total_tests} tests completed)\n"
+                                 f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
 
-        progress_container.empty()
-        info_container.empty()
+        progress_bar.empty()
+        status_text.empty()
         return results
 
     # Give this button a unique key
@@ -582,47 +582,46 @@ with tab2:
         if len(selected_prompts) != 5:
             st.error("Please select exactly 5 prompts for testing.")
         else:
-            with st.spinner("Running automated tests..."):
-                # Check if Ollama (LLaMA) is available
-                ollama_available = True
-                try:
-                    all_models["Ollama (LLaMA)"]("Test prompt")
-                except Exception:
-                    ollama_available = False
-                    st.warning("Skipping Ollama (LLaMA) due to unavailability")
+            # Check if Ollama (LLaMA) is available
+            ollama_available = True
+            try:
+                all_models["Ollama (LLaMA)"]("Test prompt")
+            except Exception:
+                ollama_available = False
+                st.warning("Skipping Ollama (LLaMA) due to unavailability")
 
-                # Filter out Ollama if it's not available
-                test_models = {k: v for k, v in all_models.items() if k != "Ollama (LLaMA)" or ollama_available}
+            # Filter out Ollama if it's not available
+            test_models = {k: v for k, v in all_models.items() if k != "Ollama (LLaMA)" or ollama_available}
+            
+            test_results = run_automated_tests(selected_prompts, test_models, authentic_model)
+            
+            if test_results:
+                accuracy, cm, report = analyze_results(test_results)
                 
-                test_results = run_automated_tests(selected_prompts, test_models, authentic_model)
+                st.markdown("### Automated Test Results")
+                st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
                 
-                if test_results:
-                    accuracy, cm, report = analyze_results(test_results)
-                    
-                    st.markdown("### Automated Test Results")
-                    st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
-                    
-                    st.markdown("### Confusion Matrix")
-                    cm_df = pd.DataFrame(cm, index=test_models.keys(), columns=test_models.keys())
-                    st.write(cm_df)
-                    print("Confusion Matrix:")
-                    print(cm_df)  # Print confusion matrix to the terminal
-                    
-                    st.markdown("### Classification Report")
-                    report_df = pd.DataFrame(report).transpose()
-                    st.write(report_df)
-                    print("\nClassification Report:")
-                    print(report_df)  # Print classification report to the terminal
-                    
-                    st.markdown("### Detailed Results")
-                    results_df = pd.DataFrame(test_results)
-                    st.write(results_df)
-                    print("\nDetailed Results:")
-                    print(results_df)  # Print detailed results to the terminal
-                else:
-                    error_msg = "No test results available. Please check the logs for errors."
-                    st.error(error_msg)
-                    print(error_msg)  # Print error to the terminal
+                st.markdown("### Confusion Matrix")
+                cm_df = pd.DataFrame(cm, index=test_models.keys(), columns=test_models.keys())
+                st.write(cm_df)
+                print("Confusion Matrix:")
+                print(cm_df)  # Print confusion matrix to the terminal
+                
+                st.markdown("### Classification Report")
+                report_df = pd.DataFrame(report).transpose()
+                st.write(report_df)
+                print("\nClassification Report:")
+                print(report_df)  # Print classification report to the terminal
+                
+                st.markdown("### Detailed Results")
+                results_df = pd.DataFrame(test_results)
+                st.write(results_df)
+                print("\nDetailed Results:")
+                print(results_df)  # Print detailed results to the terminal
+            else:
+                error_msg = "No test results available. Please check the logs for errors."
+                st.error(error_msg)
+                print(error_msg)  # Print error to the terminal
 
 def generate_test_data(models, num_samples_per_model=10):
     test_data = []
