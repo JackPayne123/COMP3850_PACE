@@ -540,72 +540,66 @@ with tab2:
 
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
-        total_tests = len(prompts) * len(all_models) * 3  # 3 repetitions for each prompt
+        total_tests = len(prompts) * 3  # 3 repetitions for each prompt
         progress_bar = st.progress(0)
         status_text = st.empty()
         test_counter = 0
         start_time = time.time()
 
         for prompt in prompts:
-            for _ in range(3):  # Repeat 3 times for each prompt
-                # Generate text using the selected authentic model
-                if authentic_model == "OpenAI":
-                    original_text = generate_text_openai_simple(prompt)
-                elif authentic_model == "Claude":
-                    original_text = generate_text_claude_simple(prompt)
-                elif authentic_model == "Gemini":
-                    original_text = generate_text_gemini_simple(prompt)
-                elif authentic_model == "Ollama (LLaMA)":
-                    original_text = generate_text_ollama_simple(prompt)
-                else:
-                    original_text = all_models[authentic_model](prompt)
+            for _ in range(3):  # Repeat 3 times for robustness
+                try:
+                    # Generate text using the selected authentic model
+                    if authentic_model == "OpenAI":
+                        original_text = generate_text_openai_simple(prompt)
+                    elif authentic_model == "Claude":
+                        original_text = generate_text_claude_simple(prompt)
+                    elif authentic_model == "Gemini":
+                        original_text = generate_text_gemini_simple(prompt)
+                    elif authentic_model == "Ollama (LLaMA)":
+                        original_text = generate_text_ollama_simple(prompt)
+                    else:
+                        original_text = all_models[authentic_model](prompt)
 
-                for model_name, model_func in all_models.items():
-                    try:
-                        # Determine the number of iterations based on whether it's the authentic model or not
-                        iterations = 5 if model_name == authentic_model else 1
-
-                        # Verify authorship
-                        with st.empty():
-                            _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
-                                original_text, model_func, model_name, all_models, iterations=iterations
-                            )
-                        
-                        predicted_author = model_names[np.argmax(probabilities)]
-                        result = {
-                            "prompt": prompt,
-                            "true_author": authentic_model,
-                            "tested_model": model_name,
-                            "predicted_author": predicted_author,
-                            "authorship_result": authorship_result,
-                            "iterations": iterations
-                        }
-                        results.append(result)
-                        print(f"Test result: {result}")  # Print each result to the terminal
-                    except Exception as e:
-                        error_msg = f"Error testing model {model_name}: {e}"
-                        st.warning(error_msg)
-                        print(error_msg)  # Print error to the terminal
-                        results.append({
-                            "prompt": prompt,
-                            "true_author": authentic_model,
-                            "tested_model": model_name,
-                            "predicted_author": "Error",
-                            "authorship_result": f"Error: {e}",
-                            "iterations": 5 if model_name == authentic_model else 1
-                        })
+                    # Verify authorship
+                    with st.empty():
+                        _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                            original_text, all_models[authentic_model], authentic_model, all_models, iterations=5
+                        )
                     
-                    # Update progress and info
-                    test_counter += 1
-                    progress_percentage = test_counter / total_tests
-                    progress_bar.progress(progress_percentage)
-                    
-                    elapsed_time = time.time() - start_time
-                    estimated_total_time = (elapsed_time / test_counter) * total_tests
-                    estimated_remaining_time = estimated_total_time - elapsed_time
-                    
-                    status_text.text(f"Progress: {progress_percentage:.1%} ({test_counter}/{total_tests} tests completed)\n"
-                                 f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
+                    predicted_author = model_names[np.argmax(probabilities)]
+                    result = {
+                        "prompt": prompt,
+                        "true_author": authentic_model,
+                        "predicted_author": predicted_author,
+                        "authorship_result": authorship_result,
+                        "probabilities": dict(zip(model_names, probabilities))
+                    }
+                    results.append(result)
+                    print(f"Test result: {result}")  # Print each result to the terminal
+                except Exception as e:
+                    error_msg = f"Error in test: {e}"
+                    st.warning(error_msg)
+                    print(error_msg)  # Print error to the terminal
+                    results.append({
+                        "prompt": prompt,
+                        "true_author": authentic_model,
+                        "predicted_author": "Error",
+                        "authorship_result": f"Error: {e}",
+                        "probabilities": {}
+                    })
+                
+                # Update progress and info
+                test_counter += 1
+                progress_percentage = test_counter / total_tests
+                progress_bar.progress(progress_percentage)
+                
+                elapsed_time = time.time() - start_time
+                estimated_total_time = (elapsed_time / test_counter) * total_tests
+                estimated_remaining_time = estimated_total_time - elapsed_time
+                
+                status_text.text(f"Progress: {progress_percentage:.1%} ({test_counter}/{total_tests} tests completed)\n"
+                             f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
 
         progress_bar.empty()
         status_text.empty()
