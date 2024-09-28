@@ -651,6 +651,9 @@ with tab2:
                 report_df = pd.DataFrame(report).transpose()
                 st.write(report_df)
                 
+                st.markdown("### Debug: Result Structure")
+                st.json(test_results[0])
+                
                 st.markdown("### Detailed Results")
                 for result in test_results:
                     st.markdown(f"**Prompt:** {result['prompt']}")
@@ -695,22 +698,19 @@ with tab2:
 
                 # Handle regenerations
                 if 'regenerations' in results_df.columns:
-                    regeneration_models = set()
-                    max_regenerations = 0
-                    for regens in results_df['regenerations']:
-                        if isinstance(regens, dict):
-                            regeneration_models.update(regens.keys())
-                            for model_regens in regens.values():
-                                if isinstance(model_regens, list):
-                                    max_regenerations = max(max_regenerations, len(model_regens))
+                    for i in range(5):  # 5 regenerations for authentic model
+                        col_name = f'authentic_regeneration_{i+1}'
+                        results_df[col_name] = results_df['regenerations'].apply(
+                            lambda x: x.get(authentic_model, [])[i] if isinstance(x.get(authentic_model), list) and i < len(x.get(authentic_model)) else ''
+                        )
                     
-                    for model in regeneration_models:
-                        for i in range(max_regenerations):
-                            col_name = f'regeneration_{model}_{i+1}'
+                    for model in all_models.keys():
+                        if model != authentic_model:
+                            col_name = f'contrasting_regeneration_{model}'
                             results_df[col_name] = results_df['regenerations'].apply(
-                                lambda x: x.get(model, [''])[i] if isinstance(x.get(model), list) and i < len(x.get(model)) else ''
+                                lambda x: x.get(model, [''])[0] if isinstance(x.get(model), list) and len(x.get(model)) > 0 else ''
                             )
-                    
+
                     results_df = results_df.drop(columns=['regenerations'])
 
                 csv = results_df.to_csv(index=False)
