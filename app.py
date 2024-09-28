@@ -495,7 +495,6 @@ def analyze_results(results):
 
 with tab2:
     st.title("Automated Testing")
-
     # List of 25 example prompts
     example_prompts = [
         "Explain the theory of relativity in simple terms.",
@@ -524,7 +523,6 @@ with tab2:
         "Discuss the ethical considerations of genetic engineering.",
         "Explain how neural networks in machine learning work."
     ]
-
     # Allow user to select 1 to 5 prompts
     num_prompts = st.slider("Select the number of prompts for testing:", min_value=1, max_value=5, value=3)
     
@@ -541,16 +539,19 @@ with tab2:
         list(all_models.keys())
     )
 
-    def run_automated_tests(prompts, all_models, authentic_model):
+    # Add a slider for the number of repetitions
+    num_repetitions = st.slider("Select the number of repetitions for each prompt:", min_value=1, max_value=5, value=3)
+
+    def run_automated_tests(prompts, all_models, authentic_model, num_repetitions):
         results = []
-        total_tests = len(prompts) * 3  # 3 repetitions for each prompt
+        total_tests = len(prompts) * num_repetitions
         progress_bar = st.progress(0)
         status_text = st.empty()
         test_counter = 0
         start_time = time.time()
 
         for prompt in prompts:
-            for _ in range(3):  # Repeat 3 times for robustness
+            for _ in range(num_repetitions):  # Use the user-selected number of repetitions
                 try:
                     # Generate text using the selected authentic model
                     if authentic_model == "OpenAI":
@@ -624,7 +625,7 @@ with tab2:
             # Filter out Ollama if it's not available
             test_models = {k: v for k, v in all_models.items() if k != "Ollama (LLaMA)" or ollama_available}
             
-            test_results = run_automated_tests(selected_prompts, test_models, authentic_model)
+            test_results = run_automated_tests(selected_prompts, test_models, authentic_model, num_repetitions)
             
             if test_results:
                 accuracy, cm, report = analyze_results(test_results)
