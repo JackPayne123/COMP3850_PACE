@@ -505,12 +505,14 @@ with tab2:
         "Explain how neural networks in machine learning work."
     ]
 
-    # Allow user to select 5 prompts
+    # Allow user to select 1 to 5 prompts
+    num_prompts = st.slider("Select the number of prompts for testing:", min_value=1, max_value=5, value=3)
+    
     selected_prompts = st.multiselect(
-        "Select 5 prompts for testing:",
+        f"Select {num_prompts} prompt{'s' if num_prompts > 1 else ''} for testing:",
         example_prompts,
-        default=example_prompts[:5],
-        max_selections=5
+        default=example_prompts[:num_prompts],
+        max_selections=num_prompts
     )
 
     # Select the authentic model
@@ -579,8 +581,8 @@ with tab2:
 
     # Give this button a unique key
     if st.button("Run Automated Tests", key="run_automated_tests_button"):
-        if len(selected_prompts) != 5:
-            st.error("Please select exactly 5 prompts for testing.")
+        if len(selected_prompts) != num_prompts:
+            st.error(f"Please select exactly {num_prompts} prompt{'s' if num_prompts > 1 else ''} for testing.")
         else:
             # Check if Ollama (LLaMA) is available
             ollama_available = True
