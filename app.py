@@ -372,101 +372,219 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     return authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container
 
-st.title("Text Input Options")
+# Create tabs
+tab1, tab2 = st.tabs(["Verification", "Automated Testing"])
 
-input_option = st.radio(
-    "Choose input method:",
-    ("Enter text manually", "Generate text using a model")
-)
+with tab1:
+    st.title("Text Input Options")
 
-if input_option == "Generate text using a model":
-    generation_model = st.selectbox(
-        "Select model for text generation",
-        available_models
+    input_option = st.radio(
+        "Choose input method:",
+        ("Enter text manually", "Generate text using a model")
     )
-    
-    # Add example prompts
-    example_prompts = [
-        "Explain the concept of quantum entanglement in simple terms.",
-        "Write a short story about a time traveler who accidentally changes history.",
-        "Describe the process of photosynthesis in plants.",
-        "Create a recipe for a unique fusion dish combining Italian and Japanese cuisines."
-    ]
-    
-    selected_prompt = st.selectbox(
-        "Select an example prompt or write your own:",
-        ["Write your own prompt..."] + example_prompts
+
+    if input_option == "Generate text using a model":
+        generation_model = st.selectbox(
+            "Select model for text generation",
+            available_models
+        )
+        
+        # Add example prompts
+        example_prompts = [
+            "Explain the concept of quantum entanglement in simple terms.",
+            "Write a short story about a time traveler who accidentally changes history.",
+            "Describe the process of photosynthesis in plants.",
+            "Create a recipe for a unique fusion dish combining Italian and Japanese cuisines."
+        ]
+        
+        selected_prompt = st.selectbox(
+            "Select an example prompt or write your own:",
+            ["Write your own prompt..."] + example_prompts
+        )
+        
+        if selected_prompt == "Write your own prompt...":
+            prompt = st.text_area("Enter your prompt for text generation")
+        else:
+            prompt = st.text_area("Enter your prompt for text generation", value=selected_prompt)
+        
+        if st.button("Generate Text"):
+            try:
+                generated_text = generate_text(generation_model, prompt)
+                st.write("Generated Text:")
+                st.write(generated_text)
+                st.session_state.generated_text = generated_text
+            except Exception as e:
+                st.error(f"Error generating text: {str(e)}")
+
+    if 'input_text' not in st.session_state:
+        st.session_state.input_text = "The quick brown fox jumps over the lazy dog."
+
+    st.title("Self-Watermarking Experiment")
+
+    model_choice = st.selectbox(
+        "Select the model to verify against:",
+        list(all_models.keys())
     )
-    
-    if selected_prompt == "Write your own prompt...":
-        prompt = st.text_area("Enter your prompt for text generation")
+
+    authentic_model = all_models[model_choice]
+
+    if input_option == "Enter text manually":
+        st.session_state.input_text = st.text_area("Enter the text to verify:", st.session_state.input_text)
     else:
-        prompt = st.text_area("Enter your prompt for text generation", value=selected_prompt)
-    
-    if st.button("Generate Text"):
-        try:
-            generated_text = generate_text(generation_model, prompt)
-            st.write("Generated Text:")
-            st.write(generated_text)
-            st.session_state.generated_text = generated_text
-        except Exception as e:
-            st.error(f"Error generating text: {str(e)}")
+        st.session_state.input_text = st.text_area("Enter the text to verify:", 
+                                                   value=st.session_state.get('generated_text', st.session_state.input_text),
+                                                   help="You can edit the generated text or enter new text here.")
 
-if 'input_text' not in st.session_state:
-    st.session_state.input_text = "The quick brown fox jumps over the lazy dog."
-
-st.title("Self-Watermarking Experiment")
-
-model_choice = st.selectbox(
-    "Select the model to verify against:",
-    list(all_models.keys())
-)
-
-authentic_model = all_models[model_choice]
-
-if input_option == "Enter text manually":
-    st.session_state.input_text = st.text_area("Enter the text to verify:", st.session_state.input_text)
-else:
-    st.session_state.input_text = st.text_area("Enter the text to verify:", 
-                                               value=st.session_state.get('generated_text', st.session_state.input_text),
-                                               help="You can edit the generated text or enter new text here.")
-
-if st.button("Run Verification"):
-    with st.spinner("Running verification..."):
-        iterations = 5
-        authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
-        
-        # Clear the iteration container
-        iteration_container.empty()
-        
-        # Display results in the results container
-        with results_container.container():
-
-            st.markdown("### Verification Results")
-            if authorship_result == "Authentic":
-                st.markdown(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
-                st.markdown(f"The predicted original model that generated the text is {model_choice}")
-            else:
-                predicted_model = model_names[np.argmax(probabilities)]
-                st.markdown(f"**Authorship Result:** {authorship_result} ")
-                st.markdown(f"The predicted original model that generated the text is {predicted_model}")
+    if st.button("Run Verification"):
+        with st.spinner("Running verification..."):
+            iterations = 5
+            authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
             
-            st.markdown("### Model Probabilities")
-            prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-            prob_styler = prob_df.style.format({'Probability': '{:.2%}'}).hide(axis='index')
-            st.write(prob_styler.to_html(), unsafe_allow_html=True)
+            # Clear the iteration container
+            iteration_container.empty()
             
-            st.markdown("### Detailed Metrics")
-            metrics_df = pd.DataFrame(results).T
-            metrics_styler = metrics_df.style.format({
-                'BERTScore': '{:.4f}',
-                'Cosine Similarity': '{:.4f}',
-                'Perplexity (Lower is better)': '{:.4f}'
-            })
-            st.write(metrics_styler.to_html(), unsafe_allow_html=True)
-            
-            st.markdown("### Final Iteration for Authentic Model")
-            st.markdown(authentic_regen)
+            # Display results in the results container
+            with results_container.container():
+
+                st.markdown("### Verification Results")
+                if authorship_result == "Authentic":
+                    st.markdown(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
+                    st.markdown(f"The predicted original model that generated the text is {model_choice}")
+                else:
+                    predicted_model = model_names[np.argmax(probabilities)]
+                    st.markdown(f"**Authorship Result:** {authorship_result} ")
+                    st.markdown(f"The predicted original model that generated the text is {predicted_model}")
+                
+                st.markdown("### Model Probabilities")
+                prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
+                prob_styler = prob_df.style.format({'Probability': '{:.2%}'}).hide(axis='index')
+                st.write(prob_styler.to_html(), unsafe_allow_html=True)
+                
+                st.markdown("### Detailed Metrics")
+                metrics_df = pd.DataFrame(results).T
+                metrics_styler = metrics_df.style.format({
+                    'BERTScore': '{:.4f}',
+                    'Cosine Similarity': '{:.4f}',
+                    'Perplexity (Lower is better)': '{:.4f}'
+                })
+                st.write(metrics_styler.to_html(), unsafe_allow_html=True)
+                
+                st.markdown("### Final Iteration for Authentic Model")
+                st.markdown(authentic_regen)
+
+with tab2:
+    st.title("Automated Testing")
+
+    # List of 25 example prompts
+    example_prompts = [
+        "Explain the theory of relativity in simple terms.",
+        "Write a short story about a time traveler.",
+        "Describe the process of photosynthesis.",
+        "Discuss the impact of social media on modern society.",
+        "Explain how a computer processor works.",
+        "Write a poem about the changing seasons.",
+        "Describe the water cycle and its importance.",
+        "Discuss the pros and cons of renewable energy sources.",
+        "Explain the concept of artificial intelligence.",
+        "Write a brief history of the Internet.",
+        "Describe the process of making chocolate from cocoa beans.",
+        "Discuss the importance of biodiversity in ecosystems.",
+        "Explain how vaccines work to prevent diseases.",
+        "Write about the cultural significance of tea ceremonies.",
+        "Describe the process of plate tectonics and its effects.",
+        "Discuss the impact of space exploration on technology.",
+        "Explain the basics of quantum computing.",
+        "Write about the evolution of human language.",
+        "Describe the process of how a bill becomes a law.",
+        "Discuss the psychological effects of color in marketing.",
+        "Explain the concept of blockchain technology.",
+        "Write about the history and cultural impact of jazz music.",
+        "Describe the process of wine making from grape to bottle.",
+        "Discuss the ethical considerations of genetic engineering.",
+        "Explain how neural networks in machine learning work."
+    ]
+
+    # Allow user to select 5 prompts
+    selected_prompts = st.multiselect(
+        "Select 5 prompts for testing:",
+        example_prompts,
+        default=example_prompts[:5],
+        max_selections=5
+    )
+
+    # Select the authentic model
+    authentic_model = st.selectbox(
+        "Select the model to be considered as authentic:",
+        list(all_models.keys())
+    )
+
+    def run_automated_tests(prompts, all_models, authentic_model):
+        results = []
+        for prompt in prompts:
+            for model_name, model_func in all_models.items():
+                try:
+                    generated_text = model_func(prompt)
+                    iterations = 5 if model_name == authentic_model else 1
+                    _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                        generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
+                    )
+                    predicted_author = model_names[np.argmax(probabilities)]
+                    result = {
+                        "prompt": prompt,
+                        "true_author": model_name,
+                        "tested_model": authentic_model,
+                        "predicted_author": predicted_author,
+                        "authorship_result": authorship_result
+                    }
+                    results.append(result)
+                    print(f"Test result: {result}")  # Print each result to the terminal
+                except Exception as e:
+                    error_msg = f"Error testing model {model_name}: {e}"
+                    st.warning(error_msg)
+                    print(error_msg)  # Print error to the terminal
+                    results.append({
+                        "prompt": prompt,
+                        "true_author": model_name,
+                        "tested_model": authentic_model,
+                        "predicted_author": "Error",
+                        "authorship_result": f"Error: {e}"
+                    })
+        return results
+
+    if st.button("Run Automated Tests"):
+        if len(selected_prompts) != 5:
+            st.error("Please select exactly 5 prompts for testing.")
+        else:
+            with st.spinner("Running automated tests..."):
+                test_results = run_automated_tests(selected_prompts, all_models, authentic_model)
+                
+                if test_results:
+                    accuracy, cm, report = analyze_results(test_results)
+                    
+                    st.markdown("### Automated Test Results")
+                    st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
+                    
+                    st.markdown("### Confusion Matrix")
+                    cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
+                    st.write(cm_df)
+                    print("Confusion Matrix:")
+                    print(cm_df)  # Print confusion matrix to the terminal
+                    
+                    st.markdown("### Classification Report")
+                    report_df = pd.DataFrame(report).transpose()
+                    st.write(report_df)
+                    print("\nClassification Report:")
+                    print(report_df)  # Print classification report to the terminal
+                    
+                    st.markdown("### Detailed Results")
+                    results_df = pd.DataFrame(test_results)
+                    st.write(results_df)
+                    print("\nDetailed Results:")
+                    print(results_df)  # Print detailed results to the terminal
+                else:
+                    error_msg = "No test results available. Please check the logs for errors."
+                    st.error(error_msg)
+                    print(error_msg)  # Print error to the terminal
 
 def generate_test_data(models, num_samples_per_model=10):
     test_data = []
@@ -492,7 +610,7 @@ def run_automated_tests(test_data, all_models):
         for model_name, model_func in all_models.items():
             try:
                 _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
-                    text, model_func, model_name, all_models, iterations=3
+                    text, model_func, model_name, all_models, iterations=5
                 )
                 predicted_author = model_names[np.argmax(probabilities)]
                 result = {
