@@ -664,39 +664,55 @@ with tab2:
                     st.write(pd.DataFrame([result['probabilities']]))
                     st.markdown("**Metrics:**")
                     st.write(pd.DataFrame(result['metrics']).T)
-                    st.markdown("**Authentic Regenerations:**")
-                    for i, regen in enumerate(result['authentic_regenerations'], 1):
-                        st.markdown(f"*Regeneration {i}:*")
-                        st.text(regen)
-                    st.markdown("**Contrasting Regenerations:**")
-                    for model, regen in result['contrasting_regenerations'].items():
-                        st.markdown(f"*{model}:*")
-                        st.text(regen)
+                    
+                    st.markdown("**Regenerations:**")
+                    if 'regenerations' in result:
+                        if isinstance(result['regenerations'], dict):
+                            for model, regens in result['regenerations'].items():
+                                st.markdown(f"*{model}:*")
+                                if isinstance(regens, list):
+                                    for i, regen in enumerate(regens, 1):
+                                        st.markdown(f"Regeneration {i}:")
+                                        st.text(regen)
+                                else:
+                                    st.text(str(regens))
+                        else:
+                            st.text(str(result['regenerations']))
+                    else:
+                        st.text("No regenerations data available")
+                    
                     st.markdown("---")
                 
                 # Create a downloadable CSV file
                 results_df = pd.DataFrame(test_results)
-                
+
                 # Flatten the nested dictionaries (probabilities and metrics)
                 for col in ['probabilities', 'metrics']:
                     if col in results_df.columns:
                         flattened = pd.json_normalize(results_df[col])
                         flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
                         results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
-                
-                # Handle authentic regenerations
-                for i in range(5):  # Assuming 5 regenerations
-                    results_df[f'authentic_regeneration_{i+1}'] = results_df['authentic_regenerations'].apply(lambda x: x[i] if i < len(x) else '')
-                results_df = results_df.drop(columns=['authentic_regenerations'])
-                
-                # Handle contrasting regenerations
-                contrasting_models = set()
-                for regens in results_df['contrasting_regenerations']:
-                    contrasting_models.update(regens.keys())
-                for model in contrasting_models:
-                    results_df[f'contrasting_regeneration_{model}'] = results_df['contrasting_regenerations'].apply(lambda x: x.get(model, ''))
-                results_df = results_df.drop(columns=['contrasting_regenerations'])
-                
+
+                # Handle regenerations
+                if 'regenerations' in results_df.columns:
+                    regeneration_models = set()
+                    max_regenerations = 0
+                    for regens in results_df['regenerations']:
+                        if isinstance(regens, dict):
+                            regeneration_models.update(regens.keys())
+                            for model_regens in regens.values():
+                                if isinstance(model_regens, list):
+                                    max_regenerations = max(max_regenerations, len(model_regens))
+                    
+                    for model in regeneration_models:
+                        for i in range(max_regenerations):
+                            col_name = f'regeneration_{model}_{i+1}'
+                            results_df[col_name] = results_df['regenerations'].apply(
+                                lambda x: x.get(model, [''])[i] if isinstance(x.get(model), list) and i < len(x.get(model)) else ''
+                            )
+                    
+                    results_df = results_df.drop(columns=['regenerations'])
+
                 csv = results_df.to_csv(index=False)
                 st.download_button(
                     label="Download Results as CSV",
