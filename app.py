@@ -477,16 +477,19 @@ with tab1:
 def analyze_results(results):
     df = pd.DataFrame(results)
     
+    # Get unique authors from both true and predicted
+    unique_authors = sorted(set(df["true_author"]) | set(df["predicted_author"]))
+    
     # Overall accuracy
     accuracy = (df["true_author"] == df["predicted_author"]).mean()
     
     # Confusion matrix
     true_labels = df["true_author"]
     predicted_labels = df["predicted_author"]
-    cm = confusion_matrix(true_labels, predicted_labels, labels=df["true_author"].unique())
+    cm = confusion_matrix(true_labels, predicted_labels, labels=unique_authors)
     
     # Classification report
-    report = classification_report(true_labels, predicted_labels, output_dict=True)
+    report = classification_report(true_labels, predicted_labels, labels=unique_authors, output_dict=True)
     
     return accuracy, cm, report
 
@@ -630,7 +633,9 @@ with tab2:
                 st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
                 
                 st.markdown("### Confusion Matrix")
-                cm_df = pd.DataFrame(cm, index=test_models.keys(), columns=test_models.keys())
+                unique_authors = sorted(set(result['true_author'] for result in test_results) | 
+                                        set(result['predicted_author'] for result in test_results))
+                cm_df = pd.DataFrame(cm, index=unique_authors, columns=unique_authors)
                 st.write(cm_df)
                 print("Confusion Matrix:")
                 print(cm_df)  # Print confusion matrix to the terminal
