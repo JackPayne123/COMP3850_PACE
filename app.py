@@ -665,9 +665,12 @@ with tab2:
                     st.markdown("**Metrics:**")
                     st.write(pd.DataFrame(result['metrics']).T)
                     st.markdown("**Regenerations:**")
-                    for model, regen in result['regenerations'].items():
-                        st.markdown(f"*{model}:*")
-                        st.text(regen)
+                    if isinstance(result['regenerations'], dict):
+                        for model, regen in result['regenerations'].items():
+                            st.markdown(f"*{model}:*")
+                            st.text(regen)
+                    else:
+                        st.text(str(result['regenerations']))
                     st.markdown("---")
                 
                 # Create a downloadable CSV file
@@ -676,9 +679,13 @@ with tab2:
                 # Flatten the nested dictionaries (probabilities, metrics, and regenerations)
                 for col in ['probabilities', 'metrics', 'regenerations']:
                     if col in results_df.columns:
-                        flattened = pd.json_normalize(results_df[col])
-                        flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
-                        results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
+                        if all(isinstance(item, dict) for item in results_df[col]):
+                            flattened = pd.json_normalize(results_df[col])
+                            flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
+                            results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
+                        else:
+                            # If the column is not a dictionary, just rename it
+                            results_df = results_df.rename(columns={col: f"{col}_value"})
                 
                 csv = results_df.to_csv(index=False)
                 st.download_button(
