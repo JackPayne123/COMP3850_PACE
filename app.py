@@ -540,7 +540,7 @@ with tab2:
 
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
-        total_tests = len(prompts) * len(all_models) * 3  # 3 repetitions for each prompt and model
+        total_tests = len(prompts) * len(all_models) * 3  # 3 repetitions for each prompt
         progress_bar = st.progress(0)
         status_text = st.empty()
         test_counter = 0
@@ -548,34 +548,37 @@ with tab2:
 
         for prompt in prompts:
             for _ in range(3):  # Repeat 3 times for each prompt
+                # Generate text using the selected authentic model
+                if authentic_model == "OpenAI":
+                    original_text = generate_text_openai_simple(prompt)
+                elif authentic_model == "Claude":
+                    original_text = generate_text_claude_simple(prompt)
+                elif authentic_model == "Gemini":
+                    original_text = generate_text_gemini_simple(prompt)
+                elif authentic_model == "Ollama (LLaMA)":
+                    original_text = generate_text_ollama_simple(prompt)
+                else:
+                    original_text = all_models[authentic_model](prompt)
+
                 for model_name, model_func in all_models.items():
                     try:
-                        # Generate text using the simple API call function
-                        if model_name == "OpenAI":
-                            generated_text = generate_text_openai_simple(prompt)
-                        elif model_name == "Claude":
-                            generated_text = generate_text_claude_simple(prompt)
-                        elif model_name == "Gemini":
-                            generated_text = generate_text_gemini_simple(prompt)
-                        elif model_name == "Ollama (LLaMA)":
-                            generated_text = generate_text_ollama_simple(prompt)
-                        else:
-                            generated_text = model_func(prompt)  # Fallback to regular function if not recognized
+                        # Determine the number of iterations based on whether it's the authentic model or not
+                        iterations = 5 if model_name == authentic_model else 1
 
                         # Verify authorship
-                        iterations = 5 if model_name == authentic_model else 1
                         with st.empty():
                             _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
-                                generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
+                                original_text, model_func, model_name, all_models, iterations=iterations
                             )
                         
                         predicted_author = model_names[np.argmax(probabilities)]
                         result = {
                             "prompt": prompt,
-                            "true_author": model_name,
-                            "tested_model": authentic_model,
+                            "true_author": authentic_model,
+                            "tested_model": model_name,
                             "predicted_author": predicted_author,
-                            "authorship_result": authorship_result
+                            "authorship_result": authorship_result,
+                            "iterations": iterations
                         }
                         results.append(result)
                         print(f"Test result: {result}")  # Print each result to the terminal
@@ -585,10 +588,11 @@ with tab2:
                         print(error_msg)  # Print error to the terminal
                         results.append({
                             "prompt": prompt,
-                            "true_author": model_name,
-                            "tested_model": authentic_model,
+                            "true_author": authentic_model,
+                            "tested_model": model_name,
                             "predicted_author": "Error",
-                            "authorship_result": f"Error: {e}"
+                            "authorship_result": f"Error: {e}",
+                            "iterations": 5 if model_name == authentic_model else 1
                         })
                     
                     # Update progress and info
