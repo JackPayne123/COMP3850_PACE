@@ -188,7 +188,7 @@ def generate_text_openai(prompt):
         model="gpt-4o",
         max_tokens=250,
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should rewrite the following and output the final result only: {prompt} Remember to only output the final result"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.choices[0].message.content.strip()
@@ -200,7 +200,7 @@ def generate_text_claude(prompt):
         max_tokens=250,
         temperature=0.7,
         messages=[
-            {"role": "user", "content": f"You are a professional language facilitator. You should rewrite the following and output the final result only: {prompt} Remember to only output the final result"}
+            {"role": "user", "content": f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result"}
         ]
     )
     return response.content[0].text.strip()
@@ -213,7 +213,7 @@ def generate_text_gemini(prompt, retries=3, delay=2):
     for attempt in range(retries):
         try:
             response = model.generate_content(
-                f"You are a professional language facilitator. You should rewrite the following and output the final result only: {prompt} Remember to only output the final result",
+                f"You are a professional language facilitator. You should paraphrase the following and output the final result only: {prompt} Remember to only output the final result",
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.7,
                     max_output_tokens=250,
@@ -664,28 +664,38 @@ with tab2:
                     st.write(pd.DataFrame([result['probabilities']]))
                     st.markdown("**Metrics:**")
                     st.write(pd.DataFrame(result['metrics']).T)
-                    st.markdown("**Regenerations:**")
-                    if isinstance(result['regenerations'], dict):
-                        for model, regen in result['regenerations'].items():
-                            st.markdown(f"*{model}:*")
-                            st.text(regen)
-                    else:
-                        st.text(str(result['regenerations']))
+                    st.markdown("**Authentic Regenerations:**")
+                    for i, regen in enumerate(result['authentic_regenerations'], 1):
+                        st.markdown(f"*Regeneration {i}:*")
+                        st.text(regen)
+                    st.markdown("**Contrasting Regenerations:**")
+                    for model, regen in result['contrasting_regenerations'].items():
+                        st.markdown(f"*{model}:*")
+                        st.text(regen)
                     st.markdown("---")
                 
                 # Create a downloadable CSV file
                 results_df = pd.DataFrame(test_results)
                 
-                # Flatten the nested dictionaries (probabilities, metrics, and regenerations)
-                for col in ['probabilities', 'metrics', 'regenerations']:
+                # Flatten the nested dictionaries (probabilities and metrics)
+                for col in ['probabilities', 'metrics']:
                     if col in results_df.columns:
-                        if all(isinstance(item, dict) for item in results_df[col]):
-                            flattened = pd.json_normalize(results_df[col])
-                            flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
-                            results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
-                        else:
-                            # If the column is not a dictionary, just rename it
-                            results_df = results_df.rename(columns={col: f"{col}_value"})
+                        flattened = pd.json_normalize(results_df[col])
+                        flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
+                        results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
+                
+                # Handle authentic regenerations
+                for i in range(5):  # Assuming 5 regenerations
+                    results_df[f'authentic_regeneration_{i+1}'] = results_df['authentic_regenerations'].apply(lambda x: x[i] if i < len(x) else '')
+                results_df = results_df.drop(columns=['authentic_regenerations'])
+                
+                # Handle contrasting regenerations
+                contrasting_models = set()
+                for regens in results_df['contrasting_regenerations']:
+                    contrasting_models.update(regens.keys())
+                for model in contrasting_models:
+                    results_df[f'contrasting_regeneration_{model}'] = results_df['contrasting_regenerations'].apply(lambda x: x.get(model, ''))
+                results_df = results_df.drop(columns=['contrasting_regenerations'])
                 
                 csv = results_df.to_csv(index=False)
                 st.download_button(
