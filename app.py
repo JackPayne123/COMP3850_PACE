@@ -574,6 +574,7 @@ with tab2:
                     predicted_author = model_names[np.argmax(probabilities)]
                     result = {
                         "prompt": prompt,
+                        "original_text": original_text,
                         "true_author": authentic_model,
                         "predicted_author": predicted_author,
                         "authorship_result": authorship_result,
@@ -588,6 +589,7 @@ with tab2:
                     print(error_msg)  # Print error to the terminal
                     results.append({
                         "prompt": prompt,
+                        "original_text": "Error generating text",
                         "true_author": authentic_model,
                         "predicted_author": "Error",
                         "authorship_result": f"Error: {e}",
@@ -646,16 +648,22 @@ with tab2:
                 st.write(report_df)
                 
                 st.markdown("### Detailed Results")
-                results_df = pd.DataFrame(test_results)
-                st.write(results_df)
-                
-                st.markdown("### Metric Scores")
                 for i, result in enumerate(test_results):
                     st.markdown(f"**Test {i+1}**")
-                    metrics_df = pd.DataFrame(result['metrics']).T
-                    st.write(metrics_df)
+                    st.markdown(f"**Prompt:** {result['prompt']}")
+                    st.markdown(f"**Original Text:**")
+                    st.text(result['original_text'])
+                    st.markdown(f"**True Author:** {result['true_author']}")
+                    st.markdown(f"**Predicted Author:** {result['predicted_author']}")
+                    st.markdown(f"**Authorship Result:** {result['authorship_result']}")
+                    st.markdown("**Probabilities:**")
+                    st.write(pd.DataFrame([result['probabilities']]))
+                    st.markdown("**Metrics:**")
+                    st.write(pd.DataFrame(result['metrics']).T)
+                    st.markdown("---")
                 
                 # Create a downloadable CSV file
+                results_df = pd.DataFrame(test_results)
                 csv = results_df.to_csv(index=False)
                 st.download_button(
                     label="Download Results as CSV",
