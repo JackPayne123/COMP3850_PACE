@@ -522,8 +522,10 @@ with tab2:
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
         total_tests = len(prompts) * len(all_models)
-        progress_bar = st.progress(0)
+        progress_container = st.empty()
+        info_container = st.empty()
         test_counter = 0
+        start_time = time.time()
 
         for prompt in prompts:
             for model_name, model_func in all_models.items():
@@ -531,7 +533,7 @@ with tab2:
                     generated_text = model_func(prompt)
                     iterations = 5 if model_name == authentic_model else 1
                     
-                    # Create a temporary container for iteration display
+                    # Create a temporary container for verification process
                     with st.empty():
                         _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
                             generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
@@ -559,11 +561,20 @@ with tab2:
                         "authorship_result": f"Error: {e}"
                     })
                 
-                # Update progress bar
+                # Update progress and info
                 test_counter += 1
-                progress_bar.progress(test_counter / total_tests)
+                progress_percentage = (test_counter / total_tests) * 100
+                progress_container.progress(progress_percentage / 100)
+                
+                elapsed_time = time.time() - start_time
+                estimated_total_time = (elapsed_time / test_counter) * total_tests
+                estimated_remaining_time = estimated_total_time - elapsed_time
+                
+                info_container.info(f"Progress: {progress_percentage:.1f}% ({test_counter}/{total_tests} tests completed)\n"
+                                    f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
 
-        progress_bar.empty()  # Remove the progress bar when done
+        progress_container.empty()
+        info_container.empty()
         return results
 
     # Give this button a unique key
@@ -572,7 +583,18 @@ with tab2:
             st.error("Please select exactly 5 prompts for testing.")
         else:
             with st.spinner("Running automated tests..."):
-                test_results = run_automated_tests(selected_prompts, all_models, authentic_model)
+                # Check if Ollama (LLaMA) is available
+                ollama_available = True
+                try:
+                    all_models["Ollama (LLaMA)"]("Test prompt")
+                except Exception:
+                    ollama_available = False
+                    st.warning("Skipping Ollama (LLaMA) due to unavailability")
+
+                # Filter out Ollama if it's not available
+                test_models = {k: v for k, v in all_models.items() if k != "Ollama (LLaMA)" or ollama_available}
+                
+                test_results = run_automated_tests(selected_prompts, test_models, authentic_model)
                 
                 if test_results:
                     accuracy, cm, report = analyze_results(test_results)
@@ -581,7 +603,7 @@ with tab2:
                     st.markdown(f"**Overall Accuracy:** {accuracy:.2%}")
                     
                     st.markdown("### Confusion Matrix")
-                    cm_df = pd.DataFrame(cm, index=all_models.keys(), columns=all_models.keys())
+                    cm_df = pd.DataFrame(cm, index=test_models.keys(), columns=test_models.keys())
                     st.write(cm_df)
                     print("Confusion Matrix:")
                     print(cm_df)  # Print confusion matrix to the terminal
