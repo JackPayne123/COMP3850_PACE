@@ -435,7 +435,8 @@ with tab1:
                                                    value=st.session_state.get('generated_text', st.session_state.input_text),
                                                    help="You can edit the generated text or enter new text here.")
 
-    if st.button("Run Verification"):
+    # If there's a "Run Verification" button in this tab, give it a unique key
+    if st.button("Run Verification", key="run_verification_button"):
         with st.spinner("Running verification..."):
             iterations = 5
             authentic_regen, results, probabilities, authorship_result, model_names, results_container, iteration_container = verify_authorship(st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
@@ -551,7 +552,8 @@ with tab2:
                     })
         return results
 
-    if st.button("Run Automated Tests"):
+    # Give this button a unique key
+    if st.button("Run Automated Tests", key="run_automated_tests_button"):
         if len(selected_prompts) != 5:
             st.error("Please select exactly 5 prompts for testing.")
         else:
