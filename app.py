@@ -540,56 +540,67 @@ with tab2:
 
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
-        total_tests = len(prompts) * len(all_models)
+        total_tests = len(prompts) * len(all_models) * 3  # 3 repetitions for each prompt and model
         progress_bar = st.progress(0)
         status_text = st.empty()
         test_counter = 0
         start_time = time.time()
 
         for prompt in prompts:
-            for model_name, model_func in all_models.items():
-                try:
-                    generated_text = model_func(prompt)
-                    iterations = 5 if model_name == authentic_model else 1
+            for _ in range(3):  # Repeat 3 times for each prompt
+                for model_name, model_func in all_models.items():
+                    try:
+                        # Generate text using the simple API call function
+                        if model_name == "OpenAI":
+                            generated_text = generate_text_openai_simple(prompt)
+                        elif model_name == "Claude":
+                            generated_text = generate_text_claude_simple(prompt)
+                        elif model_name == "Gemini":
+                            generated_text = generate_text_gemini_simple(prompt)
+                        elif model_name == "Ollama (LLaMA)":
+                            generated_text = generate_text_ollama_simple(prompt)
+                        else:
+                            generated_text = model_func(prompt)  # Fallback to regular function if not recognized
+
+                        # Verify authorship
+                        iterations = 5 if model_name == authentic_model else 1
+                        with st.empty():
+                            _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                                generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
+                            )
+                        
+                        predicted_author = model_names[np.argmax(probabilities)]
+                        result = {
+                            "prompt": prompt,
+                            "true_author": model_name,
+                            "tested_model": authentic_model,
+                            "predicted_author": predicted_author,
+                            "authorship_result": authorship_result
+                        }
+                        results.append(result)
+                        print(f"Test result: {result}")  # Print each result to the terminal
+                    except Exception as e:
+                        error_msg = f"Error testing model {model_name}: {e}"
+                        st.warning(error_msg)
+                        print(error_msg)  # Print error to the terminal
+                        results.append({
+                            "prompt": prompt,
+                            "true_author": model_name,
+                            "tested_model": authentic_model,
+                            "predicted_author": "Error",
+                            "authorship_result": f"Error: {e}"
+                        })
                     
-                    # Create a temporary container for verification process
-                    with st.empty():
-                        _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
-                            generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
-                        )
+                    # Update progress and info
+                    test_counter += 1
+                    progress_percentage = test_counter / total_tests
+                    progress_bar.progress(progress_percentage)
                     
-                    predicted_author = model_names[np.argmax(probabilities)]
-                    result = {
-                        "prompt": prompt,
-                        "true_author": model_name,
-                        "tested_model": authentic_model,
-                        "predicted_author": predicted_author,
-                        "authorship_result": authorship_result
-                    }
-                    results.append(result)
-                    print(f"Test result: {result}")  # Print each result to the terminal
-                except Exception as e:
-                    error_msg = f"Error testing model {model_name}: {e}"
-                    st.warning(error_msg)
-                    print(error_msg)  # Print error to the terminal
-                    results.append({
-                        "prompt": prompt,
-                        "true_author": model_name,
-                        "tested_model": authentic_model,
-                        "predicted_author": "Error",
-                        "authorship_result": f"Error: {e}"
-                    })
-                
-                # Update progress and info
-                test_counter += 1
-                progress_percentage = test_counter / total_tests
-                progress_bar.progress(progress_percentage)
-                
-                elapsed_time = time.time() - start_time
-                estimated_total_time = (elapsed_time / test_counter) * total_tests
-                estimated_remaining_time = estimated_total_time - elapsed_time
-                
-                status_text.text(f"Progress: {progress_percentage:.1%} ({test_counter}/{total_tests} tests completed)\n"
+                    elapsed_time = time.time() - start_time
+                    estimated_total_time = (elapsed_time / test_counter) * total_tests
+                    estimated_remaining_time = estimated_total_time - elapsed_time
+                    
+                    status_text.text(f"Progress: {progress_percentage:.1%} ({test_counter}/{total_tests} tests completed)\n"
                                  f"Estimated time remaining: {estimated_remaining_time:.1f} seconds")
 
         progress_bar.empty()
@@ -688,4 +699,3 @@ def run_automated_tests(test_data, all_models):
                     "authorship_result": f"Error: {e}"
                 })
     return results
-
