@@ -521,14 +521,22 @@ with tab2:
 
     def run_automated_tests(prompts, all_models, authentic_model):
         results = []
+        total_tests = len(prompts) * len(all_models)
+        progress_bar = st.progress(0)
+        test_counter = 0
+
         for prompt in prompts:
             for model_name, model_func in all_models.items():
                 try:
                     generated_text = model_func(prompt)
                     iterations = 5 if model_name == authentic_model else 1
-                    _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
-                        generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
-                    )
+                    
+                    # Create a temporary container for iteration display
+                    with st.empty():
+                        _, _, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                            generated_text, all_models[authentic_model], authentic_model, all_models, iterations=iterations
+                        )
+                    
                     predicted_author = model_names[np.argmax(probabilities)]
                     result = {
                         "prompt": prompt,
@@ -550,6 +558,12 @@ with tab2:
                         "predicted_author": "Error",
                         "authorship_result": f"Error: {e}"
                     })
+                
+                # Update progress bar
+                test_counter += 1
+                progress_bar.progress(test_counter / total_tests)
+
+        progress_bar.empty()  # Remove the progress bar when done
         return results
 
     # Give this button a unique key
