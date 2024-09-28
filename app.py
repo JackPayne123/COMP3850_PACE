@@ -473,6 +473,23 @@ with tab1:
                 st.markdown("### Final Iteration for Authentic Model")
                 st.markdown(authentic_regen)
 
+
+def analyze_results(results):
+    df = pd.DataFrame(results)
+    
+    # Overall accuracy
+    accuracy = (df["true_author"] == df["predicted_author"]).mean()
+    
+    # Confusion matrix
+    true_labels = df["true_author"]
+    predicted_labels = df["predicted_author"]
+    cm = confusion_matrix(true_labels, predicted_labels, labels=df["true_author"].unique())
+    
+    # Classification report
+    report = classification_report(true_labels, predicted_labels, output_dict=True)
+    
+    return accuracy, cm, report
+
 with tab2:
     st.title("Automated Testing")
 
@@ -672,18 +689,3 @@ def run_automated_tests(test_data, all_models):
                 })
     return results
 
-def analyze_results(results):
-    df = pd.DataFrame(results)
-    
-    # Overall accuracy
-    accuracy = (df["true_author"] == df["predicted_author"]).mean()
-    
-    # Confusion matrix
-    true_labels = df["true_author"]
-    predicted_labels = df["predicted_author"]
-    cm = confusion_matrix(true_labels, predicted_labels, labels=df["true_author"].unique())
-    
-    # Classification report
-    report = classification_report(true_labels, predicted_labels, output_dict=True)
-    
-    return accuracy, cm, report
