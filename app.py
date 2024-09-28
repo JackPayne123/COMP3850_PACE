@@ -551,7 +551,7 @@ with tab2:
         start_time = time.time()
 
         for prompt in prompts:
-            for _ in range(num_repetitions):
+            for iteration in range(1, num_repetitions + 1):
                 try:
                     # Generate text using the selected authentic model
                     if authentic_model == "OpenAI":
@@ -567,19 +567,21 @@ with tab2:
 
                     # Verify authorship
                     with st.empty():
-                        _, metrics, probabilities, authorship_result, model_names, _, _ = verify_authorship(
+                        regenerations, metrics, probabilities, authorship_result, model_names, _, _ = verify_authorship(
                             original_text, all_models[authentic_model], authentic_model, all_models, iterations=5
                         )
                     
                     predicted_author = model_names[np.argmax(probabilities)]
                     result = {
                         "prompt": prompt,
+                        "iteration": iteration,
                         "original_text": original_text,
                         "true_author": authentic_model,
                         "predicted_author": predicted_author,
                         "authorship_result": authorship_result,
                         "probabilities": dict(zip(model_names, probabilities)),
-                        "metrics": metrics
+                        "metrics": metrics,
+                        "regenerations": regenerations
                     }
                     results.append(result)
                     print(f"Test result: {result}")  # Print each result to the terminal
@@ -589,12 +591,14 @@ with tab2:
                     print(error_msg)  # Print error to the terminal
                     results.append({
                         "prompt": prompt,
+                        "iteration": iteration,
                         "original_text": "Error generating text",
                         "true_author": authentic_model,
                         "predicted_author": "Error",
                         "authorship_result": f"Error: {e}",
                         "probabilities": {},
-                        "metrics": {}
+                        "metrics": {},
+                        "regenerations": {}
                     })
                 
                 # Update progress and info
@@ -648,9 +652,9 @@ with tab2:
                 st.write(report_df)
                 
                 st.markdown("### Detailed Results")
-                for i, result in enumerate(test_results):
-                    st.markdown(f"**Test {i+1}**")
+                for result in test_results:
                     st.markdown(f"**Prompt:** {result['prompt']}")
+                    st.markdown(f"**Iteration:** {result['iteration']}")
                     st.markdown(f"**Original Text:**")
                     st.text(result['original_text'])
                     st.markdown(f"**True Author:** {result['true_author']}")
@@ -660,10 +664,22 @@ with tab2:
                     st.write(pd.DataFrame([result['probabilities']]))
                     st.markdown("**Metrics:**")
                     st.write(pd.DataFrame(result['metrics']).T)
+                    st.markdown("**Regenerations:**")
+                    for model, regen in result['regenerations'].items():
+                        st.markdown(f"*{model}:*")
+                        st.text(regen)
                     st.markdown("---")
                 
                 # Create a downloadable CSV file
                 results_df = pd.DataFrame(test_results)
+                
+                # Flatten the nested dictionaries (probabilities, metrics, and regenerations)
+                for col in ['probabilities', 'metrics', 'regenerations']:
+                    if col in results_df.columns:
+                        flattened = pd.json_normalize(results_df[col])
+                        flattened.columns = [f"{col}_{subcol}" for subcol in flattened.columns]
+                        results_df = pd.concat([results_df.drop(columns=[col]), flattened], axis=1)
+                
                 csv = results_df.to_csv(index=False)
                 st.download_button(
                     label="Download Results as CSV",
