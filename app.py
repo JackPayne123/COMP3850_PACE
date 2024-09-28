@@ -652,8 +652,8 @@ with tab2:
                 report_df = pd.DataFrame(report).transpose()
                 st.write(report_df)
                 
-                st.markdown("### Debug: Result Structure")
-                st.json(test_results[0])
+                #st.markdown("### Debug: Result Structure")
+                #st.json(test_results[0])
                 
                 st.markdown("### Detailed Results")
                 for result in test_results:
