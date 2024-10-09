@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "COMP3850"
+name = "comp3850"
 version = "0.1.0"
 description = ""
 authors = ["JackPayne123 <jacktpayne51@gmail.com>"]
@@ -16,6 +16,7 @@ scikit-learn = "^1.5.1"
 ollama = "^0.3.1"
 google-generativeai = "^0.7.2"
 streamlit = "^1.32.0"
+rouge-score = {url = "https://files.pythonhosted.org/packages/1f/56/a81022436c08b9405a5247b71635394d44fe7e1dbedc4b28c740e09c2840/rouge_score-0.0.4-py2.py3-none-any.whl"}
 
 [build-system]
 requires = ["poetry-core"]
