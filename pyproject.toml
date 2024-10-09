@@ -17,6 +17,10 @@ ollama = "^0.3.1"
 google-generativeai = "^0.7.2"
 streamlit = "^1.32.0"
 rouge-score = {url = "https://files.pythonhosted.org/packages/1f/56/a81022436c08b9405a5247b71635394d44fe7e1dbedc4b28c740e09c2840/rouge_score-0.0.4-py2.py3-none-any.whl"}
+mistral = "^19.0.0"
+mistralai = "^1.1.0"
+watchdog = "^5.0.3"
+seaborn = "^0.13.2"
 
 [build-system]
 requires = ["poetry-core"]
