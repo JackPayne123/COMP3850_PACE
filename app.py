@@ -370,15 +370,12 @@ def normalize_scores(scores):
             normalized[:, i] = 1
     return normalized
 
-def determine_authorship(probabilities, model_names, threshold=0.4):
-    max_prob = np.max(probabilities)
+def determine_authorship(probabilities, model_names):
     max_index = np.argmax(probabilities)
-    if max_prob >= threshold and max_index == 0:
+    if max_index == 0:
         return "Authentic"
-    elif max_prob >= threshold:
-        return f"Contrasting ({model_names[max_index]})"
     else:
-        return "Inconclusive"
+        return f"Contrasting ({model_names[max_index]})"
 
 def serialize_metrics(metrics):
     serialized = {}
@@ -455,12 +452,12 @@ if st.button("Run Verification", key="run_verification_button"):
         # Display results in the results container
         st.markdown("### Verification Results")
         if authorship_result == "Authentic":
-            st.markdown(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
-            st.markdown(f"The predicted original model that generated the text is **{model_choice}**")
+            st.success(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
+            st.info(f"The predicted original model that generated the text is **{model_choice}**")
         else:
             predicted_model = model_names[np.argmax(probabilities)]
-            st.markdown(f"**Authorship Result:** {authorship_result}")
-            st.markdown(f"The predicted original model that generated the text is **{predicted_model}**")
+            st.error(f"**Authorship Result:** {authorship_result}")
+            st.info(f"The predicted original model that generated the text is **{predicted_model}**")
 
         st.markdown("### Model Probabilities")
         prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
@@ -470,15 +467,15 @@ if st.button("Run Verification", key="run_verification_button"):
         st.markdown("### Regeneration Iterations")
         for iteration in authorship_iterations:
             st.markdown(f"**Iteration {iteration['iteration']}:**")
-            st.markdown(f"```\n{iteration['text']}\n```")
+            st.markdown(f'<div class="wrapped-text">{iteration["text"]}</div>', unsafe_allow_html=True)
 
         st.markdown("### Verification Iterations")
         st.markdown("**Authentic Output:**")
-        st.markdown(f"```\n{verification_iterations[0]['authentic_output']}\n```")
+        st.markdown(f'<div class="wrapped-text">{verification_iterations[0]["authentic_output"]}</div>', unsafe_allow_html=True)
         st.markdown("**Contrasting Outputs:**")
         for model_name, output in verification_iterations[0]['contrasting_outputs'].items():
-            st.markdown(f"- **{model_name}:**")
-            st.markdown(f"```\n{output}\n```")
+            st.markdown(f"**{model_name}:**")
+            st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
 
         # Display weights
         st.markdown("### Metric Weights")
@@ -522,3 +519,18 @@ logger.info("Starting Streamlit app...")
 
 # Add this at the end of your script
 logger.info("Streamlit app initialization complete")
+
+# Add this near the top of your file, after the imports
+st.markdown("""
+<style>
+.wrapped-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+    background-color: #f0f0f0;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 5px;
+}
+</style>
+""", unsafe_allow_html=True)
