@@ -80,6 +80,13 @@ anthropic_api_key = st.sidebar.text_input("Anthropic API Key", type="password")
 gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
 mistral_api_key = st.sidebar.text_input("Mistral API Key", type="password")
 
+# Sidebar for regeneration options
+st.sidebar.header("Regeneration Options")
+regeneration_method = st.sidebar.radio(
+    "Choose regeneration method:",
+    ("Summarize", "Paraphrase")
+)
+
 # Load models and clients
 @st.cache_resource
 def load_openai_client():
@@ -218,7 +225,10 @@ def iterative_regeneration(initial_text, model_func, model_name, iterations=5):
     status_area = st.empty()
     for i in range(iterations):
         # Stage I: Generation
-        prompt = f"Please summarise the following text into one sentence:\n\n{current_text}"
+        if regeneration_method == "Summarize":
+            prompt = f"You are a professional language facilitator. You should summarize the following document using one sentence:\n\n{current_text}"
+        else:
+            prompt = f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only:\n\n{current_text}"
         current_text = model_func(prompt)
         regenerations.append(current_text)
         progress = (i + 1) / iterations
@@ -232,15 +242,15 @@ def iterative_regeneration(initial_text, model_func, model_name, iterations=5):
 # Functions for verification
 def verification_step(final_output, authentic_model_func, contrasting_model_funcs, model_names):
     # Stage II: Verification
+    if regeneration_method == "Summarize":
+        prompt = f"You are a professional language facilitator. You should summarize the following document using one sentence:\n\n{final_output}"
+    else:
+        prompt = f"You are a professional language facilitator. You should paraphrase the following sentence and output the final result only:\n\n{final_output}"
+    
     # Re-generation by the authentic model
-    prompt_authentic = f"Please summarise the following text into one sentence:\n\n{final_output}"
-    y_a = authentic_model_func(prompt_authentic)
+    y_a = authentic_model_func(prompt)
     # Re-generation by contrasting models
-    y_cs = []
-    for model_func in contrasting_model_funcs:
-        prompt_contrasting = f"Please summarise the following text into one sentence:\n\n{final_output}"
-        y_c = model_func(prompt_contrasting)
-        y_cs.append(y_c)
+    y_cs = [model_func(prompt) for model_func in contrasting_model_funcs]
     return y_a, y_cs
 
 # Scoring functions
@@ -290,14 +300,16 @@ def calculate_meteor(reference, candidate):
 
 # Verification function
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations=5):
-    prompt = "Generate a short paragraph about a random topic."
     authorship_iterations = []
     verification_iterations = []
     
     # Stage I: Iterative Regeneration
     current_text = text
     for i in range(iterations):
-        prompt = f"Please summarise the following text into one sentence:\n\n{current_text}"
+        if regeneration_method == "Summarize":
+            prompt = f"Please summarize the following text into one sentence:\n\n{current_text}"
+        else:
+            prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{current_text}"
         current_text = authentic_model(prompt)
         authorship_iterations.append({
             'iteration': i + 1,
@@ -308,8 +320,12 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
     
     # Stage II: Verification
     contrasting_models = {name: func for name, func in all_models.items() if name != authentic_name}
-    y_a = authentic_model(f"Please summarise the following text into one sentence:\n\n{final_output}")
-    y_cs = [model(f"Please summarise the following text into one sentence:\n\n{final_output}") for model in contrasting_models.values()]
+    if regeneration_method == "Summarize":
+        prompt = f"Please summarize the following text into one sentence:\n\n{final_output}"
+    else:
+        prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{final_output}"
+    y_a = authentic_model(prompt)
+    y_cs = [model(prompt) for model in contrasting_models.values()]
     
     verification_iterations.append({
         'authentic_output': y_a,
@@ -362,6 +378,17 @@ def determine_authorship(probabilities, model_names, threshold=0.4):
         return f"Contrasting ({model_names[max_index]})"
     else:
         return "Inconclusive"
+
+def serialize_metrics(metrics):
+    serialized = {}
+    for key, value in metrics.items():
+        if isinstance(value, (int, float, str, bool)):
+            serialized[key] = value
+        elif isinstance(value, np.ndarray):
+            serialized[key] = value.tolist()
+        else:
+            serialized[key] = str(value)
+    return serialized
 
 # Streamlit UI components
 st.title("Text Input Options")
