@@ -470,16 +470,15 @@ if st.button("Run Verification", key="run_verification_button"):
         st.markdown("### Regeneration Iterations")
         for iteration in authorship_iterations:
             st.markdown(f"**Iteration {iteration['iteration']}:**")
-            st.text(iteration['text'])
+            st.markdown(f"```\n{iteration['text']}\n```")
 
         st.markdown("### Verification Iterations")
-        for iteration in verification_iterations:
-            st.markdown("**Authentic Output:**")
-            st.text(iteration['authentic_output'])
-            st.markdown("**Contrasting Outputs:**")
-            for model_name, output in iteration['contrasting_outputs'].items():
-                st.markdown(f"- {model_name}:")
-                st.text(output)
+        st.markdown("**Authentic Output:**")
+        st.markdown(f"```\n{verification_iterations[0]['authentic_output']}\n```")
+        st.markdown("**Contrasting Outputs:**")
+        for model_name, output in verification_iterations[0]['contrasting_outputs'].items():
+            st.markdown(f"- **{model_name}:**")
+            st.markdown(f"```\n{output}\n```")
 
         # Display weights
         st.markdown("### Metric Weights")
