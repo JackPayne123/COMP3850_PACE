@@ -126,8 +126,9 @@ def load_gemini_client():
         logger.error(f"Failed to load Gemini client: {e}")
         return None
 
-
-
+# Add this function after the model loading functions and before the text generation functions
+def generate_text(model_name):
+    return all_models[model_name]
 
 # Text generation functions for different models
 def generate_text_openai(prompt):
