@@ -480,7 +480,9 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
 
+ 
         # Display metric contributions
+        metric_names = list(authentic_metrics.keys())
         st.markdown("### Metric Contributions to Final Probability")
         contribution_df = pd.DataFrame(weighted_scores, columns=metric_names, index=model_names)
         st.dataframe(contribution_df.style.format("{:.4f}").background_gradient(cmap="YlGnBu"))
