@@ -215,9 +215,21 @@ def analyze_results(results, regeneration_method):
     
     # Task-specific performance
     if 'task' in df.columns and 'task_score' in df.columns:
-        # Assuming task_score is a dictionary, let's extract ROUGE-L scores
-        df['rouge_l'] = df['task_score'].apply(lambda x: x.get('ROUGE-L', {}).get('f', 0) if isinstance(x, dict) else 0)
-        
+        # Check the type of task_score
+        sample_task_score = df['task_score'].iloc[0] if len(df) > 0 else None
+        print(f"Sample task_score: {sample_task_score}")
+        print(f"Type of task_score: {type(sample_task_score)}")
+
+        if isinstance(sample_task_score, dict):
+            # If task_score is a dictionary, extract ROUGE-L scores
+            df['rouge_l'] = df['task_score'].apply(lambda x: x.get('ROUGE-L', {}).get('f', 0) if isinstance(x, dict) else 0)
+        elif isinstance(sample_task_score, (float, int)):
+            # If task_score is already a numeric value, use it directly
+            df['rouge_l'] = df['task_score']
+        else:
+            print("Warning: Unexpected type for task_score. Unable to process ROUGE-L scores.")
+            df['rouge_l'] = 0
+
         summarization_score = df[df['task'] == 'summarize']['rouge_l'].mean()
         paraphrase_score = df[df['task'] == 'paraphrase']['rouge_l'].mean()
         print(f"Average Summarization ROUGE-L Score: {summarization_score:.4f}")
@@ -232,8 +244,8 @@ if __name__ == "__main__":
     test_cases_file = 'test_cases_with_datasets.json'
     
     # Generate and save test cases
-    test_cases = generate_test_cases(num_test_cases, app.available_models)
-    save_test_cases(test_cases, test_cases_file)
+    #test_cases = generate_test_cases(num_test_cases, app.available_models)
+    #save_test_cases(test_cases, test_cases_file)
     
     # Load test cases and run verification
     loaded_test_cases = load_test_cases(test_cases_file)

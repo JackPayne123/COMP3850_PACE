@@ -475,7 +475,7 @@ if st.button("Run Verification", key="run_verification_button"):
         st.markdown("**Contrasting Outputs:**")
         for model_name, output in verification_iterations[0]['contrasting_outputs'].items():
             st.markdown(f"**{model_name}:**")
-            st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="wrapped-text">{output}</div>')
 
         # Display weights
         st.markdown("### Metric Weights")
