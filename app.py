@@ -480,12 +480,6 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
 
-        # Display weights
-        st.markdown("### Metric Weights")
-        metric_names = list(authentic_metrics.keys())
-        weight_df = pd.DataFrame({'Metric': metric_names, 'Weight': weights})
-        st.table(weight_df)
-
         # Display metric contributions
         st.markdown("### Metric Contributions to Final Probability")
         contribution_df = pd.DataFrame(weighted_scores, columns=metric_names, index=model_names)
@@ -501,19 +495,6 @@ if st.button("Run Verification", key="run_verification_button"):
         plt.tight_layout()
         st.pyplot(fig)
 
-        # Display final probabilities
-        st.markdown("### Final Authorship Probabilities")
-        prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
-        st.dataframe(prob_df.style.format({'Probability': '{:.2%}'}).hide(axis='index'))
-
-        # Create a bar plot of final probabilities
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.barplot(x='Model', y='Probability', data=prob_df, ax=ax)
-        plt.title("Final Authorship Probabilities")
-        plt.ylabel("Probability")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        st.pyplot(fig)
 
 # Add a logging statement at the beginning of your main script
 logger.info("Starting Streamlit app...")
