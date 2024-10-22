@@ -469,6 +469,9 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**Iteration {iteration['iteration']}:**")
             st.markdown(f'<div class="wrapped-text">{iteration["text"]}</div>', unsafe_allow_html=True)
 
+        # Add a section gap before verification iterations
+        st.markdown('<div class="section-gap"></div>', unsafe_allow_html=True)
+
         st.markdown("### Verification Iterations")
         st.markdown("**Authentic Output:**")
         st.markdown(f'<div class="wrapped-text">{verification_iterations[0]["authentic_output"]}</div>', unsafe_allow_html=True)
@@ -515,8 +518,6 @@ if st.button("Run Verification", key="run_verification_button"):
 # Add a logging statement at the beginning of your main script
 logger.info("Starting Streamlit app...")
 
-# ... rest of your code ...
-
 # Add this at the end of your script
 logger.info("Streamlit app initialization complete")
 
@@ -529,8 +530,12 @@ st.markdown("""
     font-family: monospace;
     background-color: #f0f0f0;
     font-size: 12px;
-    padding: 10px;
+    padding: 15px;
     border-radius: 5px;
+    margin-bottom: 20px;  /* Add space below each text block */
+}
+.section-gap {
+    margin-top: 40px;  /* Add more space between major sections */
 }
 </style>
 """, unsafe_allow_html=True)
