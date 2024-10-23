@@ -199,7 +199,7 @@ def generate_text_claude(prompt):
     response = client.messages.create(
         model="claude-3-5-sonnet-20240620",
         max_tokens=1000,
-        temperature=0.7,
+        temperature=0.7,   
         messages=[
             {"role": "user", "content": prompt}
         ]
@@ -597,6 +597,23 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
 
+        # Raw Metric Scores
+        st.markdown("### Raw Metric Scores")
+        
+        # Create DataFrame for raw scores
+        raw_scores_df = pd.DataFrame(
+            [authentic_metrics] + contrasting_metrics,
+            columns=metric_names,
+            index=model_names[:-1]  # Exclude 'Human' from index since we don't have raw metrics for it
+        )
+        
+        # Display the DataFrame with formatting
+        st.dataframe(
+            raw_scores_df.style
+            .format("{:.4f}")
+            .background_gradient(cmap="YlGnBu")
+        )
+
         # Metric Contributions
         metric_names = list(authentic_metrics.keys())
         st.markdown("### Metric Contributions to Final Probability")
@@ -679,6 +696,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
