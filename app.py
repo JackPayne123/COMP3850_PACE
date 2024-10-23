@@ -596,7 +596,8 @@ if st.button("Run Verification", key="run_verification_button"):
         for model_name, output in verification_iterations[0]['contrasting_outputs'].items():
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
-
+       
+        metric_names = list(authentic_metrics.keys())
         # Raw Metric Scores
         st.markdown("### Raw Metric Scores")
         
@@ -615,7 +616,7 @@ if st.button("Run Verification", key="run_verification_button"):
         )
 
         # Metric Contributions
-        metric_names = list(authentic_metrics.keys())
+        
         st.markdown("### Metric Contributions to Final Probability")
         
         # Create DataFrame with proper index
