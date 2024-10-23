@@ -96,7 +96,7 @@ regeneration_method = st.sidebar.radio(
 
 # Add this to the sidebar options, after the regeneration method selection
 st.sidebar.header("Detection Options")
-include_human_detection = st.sidebar.checkbox("Include Human Authorship Detection", value=True)
+include_human_detection = st.sidebar.checkbox("Include Human Authorship Detection", value=False)
 
 # Load models and clients
 @st.cache_resource
