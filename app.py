@@ -41,14 +41,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# Download spaCy model if not already installed
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    import subprocess
-    subprocess.check_call(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
-    
 # Silence warnings
 warnings.filterwarnings("ignore", message="missing ScriptRunContext")
 
