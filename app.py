@@ -31,6 +31,8 @@ from mistralai import Mistral, UserMessage
 import logging
 import seaborn as sns
 from functools import wraps
+from collections import defaultdict
+import spacy
 
 # Add this near the top of your file, after the imports
 logging.basicConfig(level=logging.INFO)
@@ -125,6 +127,50 @@ def load_gemini_client():
     except Exception as e:
         logger.error(f"Failed to load Gemini client: {e}")
         return None
+
+@st.cache_resource
+def load_spacy_model():
+    return spacy.load("en_core_web_sm")
+
+def extract_human_features(text):
+    """Extract linguistic features that are typically human-like"""
+    nlp = load_spacy_model()
+    doc = nlp(text)
+    
+    features = {
+        'sentence_length_variance': np.var([len(sent) for sent in doc.sents]),
+        'unique_words_ratio': len(set(token.text.lower() for token in doc)) / len(doc),
+        'punctuation_ratio': len([token for token in doc if token.is_punct]) / len(doc),
+        'named_entity_ratio': len(doc.ents) / len(doc),
+        'stopwords_ratio': len([token for token in doc if token.is_stop]) / len(doc),
+        'avg_word_length': np.mean([len(token.text) for token in doc]),
+    }
+    
+    return features
+
+def calculate_human_similarity(text):
+    """Calculate similarity to typical human writing patterns"""
+    features = extract_human_features(text)
+    
+    # These values are based on analysis of human writing patterns
+    # They should be fine-tuned based on your human text dataset
+    human_benchmarks = {
+        'sentence_length_variance': 25.0,
+        'unique_words_ratio': 0.6,
+        'punctuation_ratio': 0.12,
+        'named_entity_ratio': 0.05,
+        'stopwords_ratio': 0.4,
+        'avg_word_length': 4.7,
+    }
+    
+    # Calculate similarity scores
+    similarities = {}
+    for feature, value in features.items():
+        benchmark = human_benchmarks[feature]
+        similarity = 1 - min(abs(value - benchmark) / benchmark, 1)
+        similarities[feature] = similarity
+    
+    return np.mean(list(similarities.values()))
 
 # Add this function after the model loading functions and before the text generation functions
 def generate_text(model_name):
@@ -301,48 +347,42 @@ def calculate_meteor(reference, candidate):
 
 # Verification function
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations=5):
-    authorship_iterations = []
-    verification_iterations = []
+    # Modify the existing function to include human verification
     
-    # Stage I: Iterative Regeneration
-    current_text = text
-    for i in range(iterations):
-        if regeneration_method == "Summarize":
-            prompt = f"Please summarize the following text into one sentence:\n\n{current_text}"
-        else:
-            prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{current_text}"
-        current_text = authentic_model(prompt)
-        authorship_iterations.append({
-            'iteration': i + 1,
-            'text': current_text
-        })
+    # Add human similarity score
+    human_score = calculate_human_similarity(text)
     
-    final_output = current_text
+    # Original verification logic
+    prompt, authorship_iterations, probabilities, authorship_result, model_names, authentic_metrics, contrasting_metrics, verification_iterations, weighted_scores, weights = verify_authorship_core(
+        text, authentic_model, authentic_name, all_models, iterations
+    )
     
-    # Stage II: Verification
-    contrasting_models = {name: func for name, func in all_models.items() if name != authentic_name}
-    if regeneration_method == "Summarize":
-        prompt = f"Please summarize the following text into one sentence:\n\n{final_output}"
+    # Adjust probabilities to include human probability
+    all_probabilities = np.append(probabilities, human_score)
+    model_names = model_names + ['Human']
+    
+    # Normalize probabilities
+    all_probabilities = all_probabilities / np.sum(all_probabilities)
+    
+    # Determine final authorship
+    max_prob_idx = np.argmax(all_probabilities)
+    if max_prob_idx == len(model_names) - 1:
+        authorship_result = "Human"
     else:
-        prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{final_output}"
-    y_a = authentic_model(prompt)
-    y_cs = [model(prompt) for model in contrasting_models.values()]
+        authorship_result = model_names[max_prob_idx]
     
-    verification_iterations.append({
-        'authentic_output': y_a,
-        'contrasting_outputs': dict(zip(contrasting_models.keys(), y_cs))
-    })
-    
-    # Calculate metrics
-    authentic_metrics = calculate_metrics(final_output, [y_a])[0]
-    contrasting_metrics = calculate_metrics(final_output, y_cs)
-    
-    # Calculate authorship probability
-    probabilities, weighted_scores, weights = calculate_authorship_probability(authentic_metrics, contrasting_metrics)
-    model_names = [authentic_name] + list(contrasting_models.keys())
-    authorship_result = determine_authorship(probabilities, model_names)
-    
-    return prompt, authorship_iterations, probabilities.tolist(), authorship_result, model_names, authentic_metrics, contrasting_metrics, verification_iterations, weighted_scores, weights
+    return (
+        prompt, 
+        authorship_iterations, 
+        all_probabilities, 
+        authorship_result, 
+        model_names, 
+        authentic_metrics, 
+        contrasting_metrics, 
+        verification_iterations, 
+        weighted_scores, 
+        weights
+    )
 
 def calculate_authorship_probability(authentic_metrics, contrasting_metrics):
     weights = np.array([0.3, 0.3, 0.15, 0.15, 0.1, 0.05])  # Adjusted weights for ROUGE and BLEU
@@ -497,6 +537,34 @@ if st.button("Run Verification", key="run_verification_button"):
         plt.tight_layout()
         st.pyplot(fig)
 
+        # Add human verification results
+        st.markdown("### Human Writing Analysis")
+        human_features = extract_human_features(st.session_state.input_text)
+        
+        # Create a radar chart for human features
+        features_df = pd.DataFrame({
+            'Feature': human_features.keys(),
+            'Score': human_features.values()
+        })
+        
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot(111, projection='polar')
+        
+        angles = np.linspace(0, 2*np.pi, len(features_df), endpoint=False)
+        values = features_df['Score'].values
+        
+        ax.plot(angles, values)
+        ax.fill(angles, values, alpha=0.25)
+        ax.set_xticks(angles)
+        ax.set_xticklabels(features_df['Feature'])
+        
+        plt.title("Human Writing Features Analysis")
+        st.pyplot(fig)
+        
+        # Show human probability
+        human_prob = all_probabilities[-1]
+        st.markdown(f"**Probability of Human Authorship:** {human_prob:.2%}")
+
 
 # Add a logging statement at the beginning of your main script
 logger.info("Starting Streamlit app...")
@@ -522,3 +590,5 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
+

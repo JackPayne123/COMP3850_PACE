@@ -239,6 +239,20 @@ def analyze_results(results, regeneration_method):
     
     return df
 
+def load_human_datasets():
+    # Add after load_summarization_datasets()
+    
+    # Load human-written text datasets
+    human_datasets = load_dataset("wikipedia", "20220301.en", split="train[:1000]")  # Wikipedia articles
+    academic_papers = load_dataset("arxiv_dataset", split="train[:1000]")  # Academic papers
+    news_articles = load_dataset("cnn_dailymail", "3.0.0", split="train[:1000]")  # News articles
+    
+    return {
+        'wikipedia': human_datasets,
+        'academic': academic_papers,
+        'news': news_articles
+    }
+
 if __name__ == "__main__":
     num_test_cases = 100  # Adjust this number based on your needs and API rate limits
     test_cases_file = 'test_cases_with_datasets.json'
