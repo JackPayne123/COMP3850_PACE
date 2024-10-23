@@ -86,6 +86,7 @@ anthropic_api_key = st.sidebar.text_input("Anthropic API Key", type="password")
 gemini_api_key = st.sidebar.text_input("Gemini API Key", type="password")
 mistral_api_key = st.sidebar.text_input("Mistral API Key", type="password")
 
+
 # Sidebar for regeneration options
 st.sidebar.header("Regeneration Options")
 regeneration_method = st.sidebar.radio(
