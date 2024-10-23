@@ -422,6 +422,10 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
      model_names, authentic_metrics, contrasting_metrics, 
      verification_iterations, weighted_scores, weights) = results
     
+    # Add human weighted scores (one row of zeros, since we handle human probability separately)
+    human_weighted_scores = np.zeros((1, weighted_scores.shape[1]))
+    weighted_scores = np.vstack([weighted_scores, human_weighted_scores])
+    
     # Adjust probabilities to include human probability
     all_probabilities = np.append(probabilities, human_score)
     model_names = model_names + ['Human']
@@ -445,7 +449,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
         authentic_metrics, 
         contrasting_metrics, 
         verification_iterations, 
-        weighted_scores, 
+        weighted_scores,  # Now includes human scores
         weights
     )
 
@@ -589,8 +593,20 @@ if st.button("Run Verification", key="run_verification_button"):
         # Display metric contributions
         metric_names = list(authentic_metrics.keys())
         st.markdown("### Metric Contributions to Final Probability")
-        contribution_df = pd.DataFrame(weighted_scores, columns=metric_names, index=model_names)
-        st.dataframe(contribution_df.style.format("{:.4f}").background_gradient(cmap="YlGnBu"))
+        
+        # Create DataFrame with proper index
+        contribution_df = pd.DataFrame(
+            weighted_scores,
+            columns=metric_names,
+            index=model_names  # This now includes the 'Human' label
+        )
+        
+        # Display the DataFrame
+        st.dataframe(
+            contribution_df.style
+            .format("{:.4f}")
+            .background_gradient(cmap="YlGnBu")
+        )
 
         # Create a stacked bar chart of metric contributions
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -599,6 +615,7 @@ if st.button("Run Verification", key="run_verification_button"):
         plt.xlabel("Models")
         plt.ylabel("Weighted Score")
         plt.legend(title="Metrics", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.xticks(rotation=45)
         plt.tight_layout()
         st.pyplot(fig)
 
@@ -608,10 +625,11 @@ if st.button("Run Verification", key="run_verification_button"):
         
         # Create a radar chart for human features
         features_df = pd.DataFrame({
-            'Feature': human_features.keys(),
-            'Score': human_features.values()
+            'Feature': list(human_features.keys()),
+            'Score': list(human_features.values())
         })
         
+        # Create radar chart
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection='polar')
         
@@ -621,7 +639,7 @@ if st.button("Run Verification", key="run_verification_button"):
         ax.plot(angles, values)
         ax.fill(angles, values, alpha=0.25)
         ax.set_xticks(angles)
-        ax.set_xticklabels(features_df['Feature'])
+        ax.set_xticklabels(features_df['Feature'], rotation=45)
         
         plt.title("Human Writing Features Analysis")
         st.pyplot(fig)
@@ -655,6 +673,8 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 
 
