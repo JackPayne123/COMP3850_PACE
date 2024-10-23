@@ -609,12 +609,19 @@ if st.button("Run Verification", key="run_verification_button"):
         # Define metric names first
         metric_names = list(authentic_metrics.keys())
         
-        # Create DataFrame for raw scores
-        raw_scores_df = pd.DataFrame(
-            [authentic_metrics] + contrasting_metrics,
-            columns=metric_names,
-            index=model_names[:-1]  # Exclude 'Human' from index since we don't have raw metrics for it
-        )
+        # Create DataFrame for raw scores - handle both cases
+        if include_human_detection:
+            raw_scores_df = pd.DataFrame(
+                [authentic_metrics] + contrasting_metrics,
+                columns=metric_names,
+                index=model_names[:-1]  # Exclude 'Human' from index
+            )
+        else:
+            raw_scores_df = pd.DataFrame(
+                [authentic_metrics] + contrasting_metrics,
+                columns=metric_names,
+                index=model_names  # Use all model names when human detection is disabled
+            )
         
         # Display the DataFrame with formatting
         st.dataframe(
@@ -626,12 +633,19 @@ if st.button("Run Verification", key="run_verification_button"):
         # Metric Contributions
         st.markdown("### Metric Contributions to Final Probability")
         
-        # Create DataFrame with proper index
-        contribution_df = pd.DataFrame(
-            weighted_scores,
-            columns=metric_names,
-            index=model_names
-        )
+        # Create DataFrame with proper index - handle both cases
+        if include_human_detection:
+            contribution_df = pd.DataFrame(
+                weighted_scores,
+                columns=metric_names,
+                index=model_names  # Include all models including Human
+            )
+        else:
+            contribution_df = pd.DataFrame(
+                weighted_scores,
+                columns=metric_names,
+                index=model_names  # Use all AI model names
+            )
         
         # Display the DataFrame
         st.dataframe(
@@ -705,6 +719,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
