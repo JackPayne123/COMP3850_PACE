@@ -555,32 +555,40 @@ else:
 if st.button("Run Verification", key="run_verification_button"):
     with st.spinner("Running verification..."):
         iterations = 5
-        prompt, authorship_iterations, probabilities, authorship_result, model_names, authentic_metrics, contrasting_metrics, verification_iterations, weighted_scores, weights = verify_authorship(
+        (prompt, authorship_iterations, probabilities, authorship_result, 
+         model_names, authentic_metrics, contrasting_metrics, 
+         verification_iterations, weighted_scores, weights) = verify_authorship(
             st.session_state.input_text, authentic_model, model_choice, all_models, iterations)
 
         # Display results in the results container
         st.markdown("### Verification Results")
-        if authorship_result == "Authentic":
+        if authorship_result == "Human":
+            st.success(f"**Authorship Result:** {authorship_result}")
+            st.info("The text appears to be written by a human")
+        elif authorship_result == "Authentic":
             st.success(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
             st.info(f"The predicted original model that generated the text is **{model_choice}**")
         else:
-            predicted_model = model_names[np.argmax(probabilities)]
             st.error(f"**Authorship Result:** {authorship_result}")
-            st.info(f"The predicted original model that generated the text is **{predicted_model}**")
+            st.info(f"The predicted original model that generated the text is **{authorship_result}**")
 
+        # Model Probabilities
         st.markdown("### Model Probabilities")
-        prob_df = pd.DataFrame({'Model': model_names, 'Probability': probabilities})
+        prob_df = pd.DataFrame({
+            'Model': model_names,
+            'Probability': probabilities
+        })
         prob_styler = prob_df.style.format({'Probability': '{:.2%}'}).hide(axis='index')
         st.write(prob_styler.to_html(), unsafe_allow_html=True)
 
+        # Regeneration Iterations
         st.markdown("### Regeneration Iterations")
         for iteration in authorship_iterations:
             st.markdown(f"**Iteration {iteration['iteration']}:**")
             st.markdown(f'<div class="wrapped-text">{iteration["text"]}</div>', unsafe_allow_html=True)
 
-        # Add a section gap before verification iterations
+        # Verification Iterations
         st.markdown('<div class="section-gap"></div>', unsafe_allow_html=True)
-
         st.markdown("### Verification Iterations")
         st.markdown("**Authentic Output:**")
         st.markdown(f'<div class="wrapped-text">{verification_iterations[0]["authentic_output"]}</div>', unsafe_allow_html=True)
@@ -589,8 +597,7 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
 
- 
-        # Display metric contributions
+        # Metric Contributions
         metric_names = list(authentic_metrics.keys())
         st.markdown("### Metric Contributions to Final Probability")
         
@@ -598,7 +605,7 @@ if st.button("Run Verification", key="run_verification_button"):
         contribution_df = pd.DataFrame(
             weighted_scores,
             columns=metric_names,
-            index=model_names  # This now includes the 'Human' label
+            index=model_names
         )
         
         # Display the DataFrame
@@ -608,7 +615,7 @@ if st.button("Run Verification", key="run_verification_button"):
             .background_gradient(cmap="YlGnBu")
         )
 
-        # Create a stacked bar chart of metric contributions
+        # Stacked bar chart
         fig, ax = plt.subplots(figsize=(10, 6))
         contribution_df.plot(kind='bar', stacked=True, ax=ax)
         plt.title("Metric Contributions to Final Probability")
@@ -619,17 +626,16 @@ if st.button("Run Verification", key="run_verification_button"):
         plt.tight_layout()
         st.pyplot(fig)
 
-        # Add human verification results
+        # Human Writing Analysis
         st.markdown("### Human Writing Analysis")
         human_features = extract_human_features(st.session_state.input_text)
         
-        # Create a radar chart for human features
+        # Create radar chart for human features
         features_df = pd.DataFrame({
             'Feature': list(human_features.keys()),
             'Score': list(human_features.values())
         })
         
-        # Create radar chart
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection='polar')
         
@@ -645,7 +651,7 @@ if st.button("Run Verification", key="run_verification_button"):
         st.pyplot(fig)
         
         # Show human probability
-        human_prob = all_probabilities[-1]
+        human_prob = probabilities[-1]  # Get the last probability which corresponds to Human
         st.markdown(f"**Probability of Human Authorship:** {human_prob:.2%}")
 
 
@@ -673,6 +679,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
