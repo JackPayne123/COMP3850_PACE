@@ -349,17 +349,77 @@ def calculate_meteor(reference, candidate):
     candidate_tokens = word_tokenize(candidate)
     return meteor_score([reference_tokens], candidate_tokens)
 
-# Verification function
-def verify_authorship(text, authentic_model, authentic_name, all_models, iterations=5):
-    # Modify the existing function to include human verification
+# Add this function before verify_authorship
+def verify_authorship_core(text, authentic_model, authentic_name, all_models, iterations=5):
+    """Core verification logic without human verification"""
+    authorship_iterations = []
+    verification_iterations = []
     
+    # Stage I: Iterative Regeneration
+    current_text = text
+    for i in range(iterations):
+        if regeneration_method == "Summarize":
+            prompt = f"Please summarize the following text into one sentence:\n\n{current_text}"
+        else:
+            prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{current_text}"
+        current_text = authentic_model(prompt)
+        authorship_iterations.append({
+            'iteration': i + 1,
+            'text': current_text
+        })
+    
+    final_output = current_text
+    
+    # Stage II: Verification
+    contrasting_models = {name: func for name, func in all_models.items() if name != authentic_name}
+    if regeneration_method == "Summarize":
+        prompt = f"Please summarize the following text into one sentence:\n\n{final_output}"
+    else:
+        prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{final_output}"
+    y_a = authentic_model(prompt)
+    y_cs = [model(prompt) for model in contrasting_models.values()]
+    
+    verification_iterations.append({
+        'authentic_output': y_a,
+        'contrasting_outputs': dict(zip(contrasting_models.keys(), y_cs))
+    })
+    
+    # Calculate metrics
+    authentic_metrics = calculate_metrics(final_output, [y_a])[0]
+    contrasting_metrics = calculate_metrics(final_output, y_cs)
+    
+    # Calculate authorship probability
+    probabilities, weighted_scores, weights = calculate_authorship_probability(authentic_metrics, contrasting_metrics)
+    model_names = [authentic_name] + list(contrasting_models.keys())
+    authorship_result = model_names[np.argmax(probabilities)]
+    
+    return (
+        prompt,
+        authorship_iterations,
+        probabilities,
+        authorship_result,
+        model_names,
+        authentic_metrics,
+        contrasting_metrics,
+        verification_iterations,
+        weighted_scores,
+        weights
+    )
+
+def verify_authorship(text, authentic_model, authentic_name, all_models, iterations=5):
+    """Wrapper function that includes human verification"""
     # Add human similarity score
     human_score = calculate_human_similarity(text)
     
-    # Original verification logic
-    prompt, authorship_iterations, probabilities, authorship_result, model_names, authentic_metrics, contrasting_metrics, verification_iterations, weighted_scores, weights = verify_authorship_core(
+    # Get core verification results
+    results = verify_authorship_core(
         text, authentic_model, authentic_name, all_models, iterations
     )
+    
+    # Unpack results
+    (prompt, authorship_iterations, probabilities, authorship_result, 
+     model_names, authentic_metrics, contrasting_metrics, 
+     verification_iterations, weighted_scores, weights) = results
     
     # Adjust probabilities to include human probability
     all_probabilities = np.append(probabilities, human_score)
@@ -594,5 +654,6 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
