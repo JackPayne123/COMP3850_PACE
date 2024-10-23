@@ -94,6 +94,10 @@ regeneration_method = st.sidebar.radio(
     ("Summarize", "Paraphrase")
 )
 
+# Add this to the sidebar options, after the regeneration method selection
+st.sidebar.header("Detection Options")
+include_human_detection = st.sidebar.checkbox("Include Human Authorship Detection", value=True)
+
 # Load models and clients
 @st.cache_resource
 def load_openai_client():
@@ -408,10 +412,7 @@ def verify_authorship_core(text, authentic_model, authentic_name, all_models, it
     )
 
 def verify_authorship(text, authentic_model, authentic_name, all_models, iterations=5):
-    """Wrapper function that includes human verification"""
-    # Add human similarity score
-    human_score = calculate_human_similarity(text)
-    
+    """Wrapper function that can optionally include human verification"""
     # Get core verification results
     results = verify_authorship_core(
         text, authentic_model, authentic_name, all_models, iterations
@@ -422,34 +423,39 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
      model_names, authentic_metrics, contrasting_metrics, 
      verification_iterations, weighted_scores, weights) = results
     
-    # Add human weighted scores (one row of zeros, since we handle human probability separately)
-    human_weighted_scores = np.zeros((1, weighted_scores.shape[1]))
-    weighted_scores = np.vstack([weighted_scores, human_weighted_scores])
-    
-    # Adjust probabilities to include human probability
-    all_probabilities = np.append(probabilities, human_score)
-    model_names = model_names + ['Human']
-    
-    # Normalize probabilities
-    all_probabilities = all_probabilities / np.sum(all_probabilities)
-    
-    # Determine final authorship
-    max_prob_idx = np.argmax(all_probabilities)
-    if max_prob_idx == len(model_names) - 1:
-        authorship_result = "Human"
+    if include_human_detection:
+        # Add human similarity score
+        human_score = calculate_human_similarity(text)
+        
+        # Add human weighted scores
+        human_weighted_scores = np.zeros((1, weighted_scores.shape[1]))
+        weighted_scores = np.vstack([weighted_scores, human_weighted_scores])
+        
+        # Adjust probabilities to include human probability
+        all_probabilities = np.append(probabilities, human_score)
+        all_model_names = model_names + ['Human']
+        
+        # Normalize probabilities
+        all_probabilities = all_probabilities / np.sum(all_probabilities)
+        
+        # Determine final authorship
+        max_prob_idx = np.argmax(all_probabilities)
+        final_authorship = "Human" if max_prob_idx == len(all_model_names) - 1 else all_model_names[max_prob_idx]
     else:
-        authorship_result = model_names[max_prob_idx]
+        all_probabilities = probabilities
+        all_model_names = model_names
+        final_authorship = model_names[np.argmax(probabilities)]
     
     return (
         prompt, 
         authorship_iterations, 
         all_probabilities, 
-        authorship_result, 
-        model_names, 
+        final_authorship, 
+        all_model_names, 
         authentic_metrics, 
         contrasting_metrics, 
         verification_iterations, 
-        weighted_scores,  # Now includes human scores
+        weighted_scores,
         weights
     )
 
@@ -562,11 +568,11 @@ if st.button("Run Verification", key="run_verification_button"):
 
         # Display results in the results container
         st.markdown("### Verification Results")
-        if authorship_result == "Human":
+        if include_human_detection and authorship_result == "Human":
             st.success(f"**Authorship Result:** {authorship_result}")
             st.info("The text appears to be written by a human")
-        elif authorship_result == "Authentic":
-            st.success(f"**Authorship Result:** {authorship_result} (Original Model: {model_choice})")
+        elif authorship_result == model_choice:
+            st.success(f"**Authorship Result:** Authentic (Original Model: {model_choice})")
             st.info(f"The predicted original model that generated the text is **{model_choice}**")
         else:
             st.error(f"**Authorship Result:** {authorship_result}")
@@ -597,9 +603,11 @@ if st.button("Run Verification", key="run_verification_button"):
             st.markdown(f"**{model_name}:**")
             st.markdown(f'<div class="wrapped-text">{output}</div>', unsafe_allow_html=True)
        
-        metric_names = list(authentic_metrics.keys())
         # Raw Metric Scores
         st.markdown("### Raw Metric Scores")
+        
+        # Define metric names first
+        metric_names = list(authentic_metrics.keys())
         
         # Create DataFrame for raw scores
         raw_scores_df = pd.DataFrame(
@@ -616,7 +624,6 @@ if st.button("Run Verification", key="run_verification_button"):
         )
 
         # Metric Contributions
-        
         st.markdown("### Metric Contributions to Final Probability")
         
         # Create DataFrame with proper index
@@ -644,33 +651,34 @@ if st.button("Run Verification", key="run_verification_button"):
         plt.tight_layout()
         st.pyplot(fig)
 
-        # Human Writing Analysis
-        st.markdown("### Human Writing Analysis")
-        human_features = extract_human_features(st.session_state.input_text)
-        
-        # Create radar chart for human features
-        features_df = pd.DataFrame({
-            'Feature': list(human_features.keys()),
-            'Score': list(human_features.values())
-        })
-        
-        fig = plt.figure(figsize=(10, 6))
-        ax = fig.add_subplot(111, projection='polar')
-        
-        angles = np.linspace(0, 2*np.pi, len(features_df), endpoint=False)
-        values = features_df['Score'].values
-        
-        ax.plot(angles, values)
-        ax.fill(angles, values, alpha=0.25)
-        ax.set_xticks(angles)
-        ax.set_xticklabels(features_df['Feature'], rotation=45)
-        
-        plt.title("Human Writing Features Analysis")
-        st.pyplot(fig)
-        
-        # Show human probability
-        human_prob = probabilities[-1]  # Get the last probability which corresponds to Human
-        st.markdown(f"**Probability of Human Authorship:** {human_prob:.2%}")
+        # Only show Human Writing Analysis if human detection is enabled
+        if include_human_detection:
+            st.markdown("### Human Writing Analysis")
+            human_features = extract_human_features(st.session_state.input_text)
+            
+            # Create radar chart for human features
+            features_df = pd.DataFrame({
+                'Feature': list(human_features.keys()),
+                'Score': list(human_features.values())
+            })
+            
+            fig = plt.figure(figsize=(10, 6))
+            ax = fig.add_subplot(111, projection='polar')
+            
+            angles = np.linspace(0, 2*np.pi, len(features_df), endpoint=False)
+            values = features_df['Score'].values
+            
+            ax.plot(angles, values)
+            ax.fill(angles, values, alpha=0.25)
+            ax.set_xticks(angles)
+            ax.set_xticklabels(features_df['Feature'], rotation=45)
+            
+            plt.title("Human Writing Features Analysis")
+            st.pyplot(fig)
+            
+            # Show human probability
+            human_prob = probabilities[-1]
+            st.markdown(f"**Probability of Human Authorship:** {human_prob:.2%}")
 
 
 # Add a logging statement at the beginning of your main script
@@ -697,6 +705,8 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
+
 
 
 
