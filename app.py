@@ -34,13 +34,9 @@ from functools import wraps
 from collections import defaultdict
 import spacy
 
-
-
 # Add this near the top of your file, after the imports
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
 
 # Silence warnings
 warnings.filterwarnings("ignore", message="missing ScriptRunContext")
@@ -360,7 +356,16 @@ def verify_authorship_core(text, authentic_model, authentic_name, all_models, it
     authorship_iterations = []
     verification_iterations = []
     
+    # Create progress bar and status text
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    # Calculate total steps (iterations + verification steps)
+    total_steps = iterations + len(all_models)
+    current_step = 0
+    
     # Stage I: Iterative Regeneration
+    status_text.text("Stage I: Performing iterative regeneration...")
     current_text = text
     for i in range(iterations):
         if regeneration_method == "Summarize":
@@ -372,17 +377,33 @@ def verify_authorship_core(text, authentic_model, authentic_name, all_models, it
             'iteration': i + 1,
             'text': current_text
         })
+        
+        # Update progress
+        current_step += 1
+        progress_bar.progress(current_step / total_steps)
     
     final_output = current_text
     
     # Stage II: Verification
+    status_text.text("Stage II: Performing verification steps...")
     contrasting_models = {name: func for name, func in all_models.items() if name != authentic_name}
     if regeneration_method == "Summarize":
         prompt = f"Please summarize the following text into one sentence:\n\n{final_output}"
     else:
         prompt = f"Please paraphrase the following text, maintaining its original meaning:\n\n{final_output}"
+    
+    # Authentic model verification
     y_a = authentic_model(prompt)
-    y_cs = [model(prompt) for model in contrasting_models.values()]
+    current_step += 1
+    progress_bar.progress(current_step / total_steps)
+    
+    # Contrasting models verification
+    y_cs = []
+    for name, model in contrasting_models.items():
+        status_text.text(f"Verifying against {name}...")
+        y_cs.append(model(prompt))
+        current_step += 1
+        progress_bar.progress(current_step / total_steps)
     
     verification_iterations.append({
         'authentic_output': y_a,
@@ -390,6 +411,7 @@ def verify_authorship_core(text, authentic_model, authentic_name, all_models, it
     })
     
     # Calculate metrics
+    status_text.text("Calculating metrics...")
     authentic_metrics = calculate_metrics(final_output, [y_a])[0]
     contrasting_metrics = calculate_metrics(final_output, y_cs)
     
@@ -397,6 +419,10 @@ def verify_authorship_core(text, authentic_model, authentic_name, all_models, it
     probabilities, weighted_scores, weights = calculate_authorship_probability(authentic_metrics, contrasting_metrics)
     model_names = [authentic_name] + list(contrasting_models.keys())
     authorship_result = model_names[np.argmax(probabilities)]
+    
+    # Clean up progress indicators
+    progress_bar.empty()
+    status_text.empty()
     
     return (
         prompt,
@@ -719,6 +745,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
