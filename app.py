@@ -177,7 +177,7 @@ def calculate_human_similarity(text):
         similarities[feature] = similarity
     
     # Apply a more moderate scaling factor
-    human_score = np.mean(list(similarities.values())) * 0.70  # Reduce by 15% instead of 30%
+    human_score = np.mean(list(similarities.values()))   # Reduce by 15% instead of 30%
     return human_score
 
 # Add this function after the model loading functions and before the text generation functions
