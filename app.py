@@ -157,8 +157,7 @@ def calculate_human_similarity(text):
     """Calculate similarity to typical human writing patterns"""
     features = extract_human_features(text)
     
-    # These values are based on analysis of human writing patterns
-    # They should be fine-tuned based on your human text dataset
+    # Adjusted benchmarks based on typical human writing
     human_benchmarks = {
         'sentence_length_variance': 25.0,
         'unique_words_ratio': 0.6,
@@ -168,14 +167,18 @@ def calculate_human_similarity(text):
         'avg_word_length': 4.7,
     }
     
-    # Calculate similarity scores
+    # Calculate similarity scores with stricter thresholds
     similarities = {}
     for feature, value in features.items():
         benchmark = human_benchmarks[feature]
-        similarity = 1 - min(abs(value - benchmark) / benchmark, 1)
+        # More stringent similarity calculation
+        diff = abs(value - benchmark) / benchmark
+        similarity = max(0, 1 - (diff * 2))  # Multiply diff by 2 to make it stricter
         similarities[feature] = similarity
     
-    return np.mean(list(similarities.values()))
+    # Apply a scaling factor to reduce overall human probability
+    human_score = np.mean(list(similarities.values())) * 0.7  # Reduce by 30%
+    return human_score
 
 # Add this function after the model loading functions and before the text generation functions
 def generate_text(model_name):
@@ -457,16 +460,26 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
         human_weighted_scores = np.zeros((1, weighted_scores.shape[1]))
         weighted_scores = np.vstack([weighted_scores, human_weighted_scores])
         
-        # Adjust probabilities to include human probability
+        # Adjust probabilities to include human probability with threshold
         all_probabilities = np.append(probabilities, human_score)
         all_model_names = model_names + ['Human']
+        
+        # Only consider human authorship if the score is significantly high
+        HUMAN_THRESHOLD = 0.8
+        if human_score < HUMAN_THRESHOLD:
+            # If below threshold, redistribute human probability to AI models
+            human_prob = all_probabilities[-1]
+            all_probabilities = all_probabilities[:-1]
+            # Redistribute human probability proportionally to AI models
+            all_probabilities += (human_prob * (all_probabilities / np.sum(all_probabilities)))
+            all_probabilities = np.append(all_probabilities, 0.0)  # Add back human with 0 probability
         
         # Normalize probabilities
         all_probabilities = all_probabilities / np.sum(all_probabilities)
         
-        # Determine final authorship
+        # Determine final authorship with stricter human threshold
         max_prob_idx = np.argmax(all_probabilities)
-        final_authorship = "Human" if max_prob_idx == len(all_model_names) - 1 else all_model_names[max_prob_idx]
+        final_authorship = "Human" if (max_prob_idx == len(all_model_names) - 1 and human_score >= HUMAN_THRESHOLD) else all_model_names[max_prob_idx]
     else:
         all_probabilities = probabilities
         all_model_names = model_names
