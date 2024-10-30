@@ -465,7 +465,7 @@ def verify_authorship(text, authentic_model, authentic_name, all_models, iterati
         all_model_names = model_names + ['Human']
         
         # Only consider human authorship if the score is significantly high
-        HUMAN_THRESHOLD = 0.8
+        HUMAN_THRESHOLD = 0.2
         if human_score < HUMAN_THRESHOLD:
             # If below threshold, redistribute human probability to AI models
             human_prob = all_probabilities[-1]
