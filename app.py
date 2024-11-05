@@ -733,9 +733,6 @@ if st.button("Run Verification", key="run_verification_button"):
             plt.title("Human Writing Features Analysis")
             st.pyplot(fig)
             
-            # Show human probability
-            human_prob = probabilities[-1]
-            st.markdown(f"**Probability of Human Authorship:** {human_prob:.2%}")
 
 
 # Add a logging statement at the beginning of your main script
