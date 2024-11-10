@@ -16,7 +16,7 @@ A sophisticated tool for verifying the authenticity of AI-generated text and det
   - BLEU Score
   - METEOR Score
   - Perplexity Measurements
-- **Interactive Visualizations**: View detailed metrics and probability distributions
+- **Interactive Visualisations**: View detailed metrics and probability distributions
 
 ## Prerequisites
 
@@ -28,8 +28,8 @@ A sophisticated tool for verifying the authenticity of AI-generated text and det
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ai-text-verification.git
-   cd ai-text-verification
+   git clone https://github.com/JackPayne123/COMP3850_PACE.git
+   cd COMP3850_PACE
    ```
 
 2. Create and activate a virtual environment (recommended):
@@ -118,23 +118,3 @@ project_root/
 ├── requirements.txt           # Project dependencies
 └── README.md                 # Project documentation
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- OpenAI for GPT-4 API
-- Anthropic for Claude API
-- Google for Gemini API
-- Mistral AI for their API
-- The Streamlit team for their excellent framework
