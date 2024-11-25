@@ -2,6 +2,8 @@
 
 A sophisticated tool for verifying the authenticity of AI-generated text and detecting which AI model likely generated a piece of text. The tool uses multiple metrics and comparison techniques to provide accurate authorship attribution.
 
+This is an implementation of the paper "Generative Models are Self-Watermarked: Declaring Model Authentication through Re-Generation" https://arxiv.org/pdf/2402.16889
+
 ## Features
 
 - **Multi-Model Support**: Verify text against multiple AI models including OpenAI GPT-4, Anthropic Claude, Google Gemini, and Mistral
